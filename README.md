@@ -401,3 +401,48 @@ Why it’s important: Protects user financial information and builds trust in th
 Booking → Payment: One-to-One
 
 
+
+# ⚙️ CI/CD Pipeline
+
+Continuous Integration (CI) and Continuous Deployment (CD) are key components of modern software development. They automate the process of building, testing, and deploying code, ensuring faster delivery, fewer human errors, and more reliable updates.
+
+🔄 Continuous Integration (CI)
+
+In the Airbnb Clone Project, Continuous Integration ensures that every code change pushed to the repository is automatically tested and validated.
+This helps detect errors early in the development process, maintain code quality, and keep the main branch stable.
+
+Key Benefits:
+
+Early detection of bugs and integration issues.
+
+Consistent testing environment for all contributors.
+
+Smooth collaboration through automated build checks.
+
+🚀 Continuous Deployment (CD)
+
+Continuous Deployment automates the process of pushing tested and approved changes to the production environment.
+This ensures that new features and fixes are delivered quickly and consistently without manual intervention.
+
+Key Benefits:
+
+Faster feature delivery and updates.
+
+Reduced downtime through automated deployment.
+
+Improved reliability and rollback management.
+
+🧰 Tools Used
+
+To achieve CI/CD automation, the following tools are utilized in this project:
+
+GitHub Actions: Automates workflows for testing, building, and deploying code directly from the GitHub repository.
+
+Docker: Containerizes the application, ensuring consistency across development, testing, and production environments.
+
+Cloud Deployment Services (e.g., AWS, Render, Heroku): Used for hosting the production-ready application.
+
+Testing Frameworks (e.g., Pytest, Django Test): Ensure that the code meets functional and performance requirements before deployment.
+
+
+
