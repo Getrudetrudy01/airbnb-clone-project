@@ -168,10 +168,143 @@ GitHub Actions automates testing, building, and deploying the Airbnb Clone, ensu
 A cloud hosting environment used to deploy the application and make it accessible to end users.
 This ensures scalability, performance, and continuous availability of the Airbnb Clone web platform.
 
+
 🔒 API Security Tools
 
 Includes libraries and middleware for implementing authentication (JWT, OAuth2), data validation, and encryption.
 These ensure that all communication between the client and server remains private and tamper-proof.
- 
+
+
+ # 🗄️ Database Design
+
+The Airbnb Clone Project uses a relational database model built with MySQL, ensuring data integrity, scalability, and efficient querying. The database is designed to represent real-world relationships between users, properties, bookings, reviews, and payments.
+
+🧑‍🤝‍🧑 Users
+
+Represents all users registered on the platform — including hosts and guests.
+
+Key Fields:
+
+id: Unique identifier for each user
+
+name: Full name of the user
+
+email: User’s email address (unique)
+
+password_hash: Encrypted password for authentication
+
+role: Defines whether the user is a host or guest
+
+Relationships:
+
+A user can list multiple properties.
+
+A user can make multiple bookings.
+
+A user can write multiple reviews.
+
+🏠 Properties
+
+Represents all listed accommodations available for booking.
+
+Key Fields:
+
+id: Unique identifier for each property
+
+host_id: Foreign key referencing the user (host)
+
+title: Property name or title
+
+description: Overview of the property
+
+price_per_night: Cost per night for booking
+
+Relationships:
+
+A property belongs to one host (user).
+
+A property can have multiple bookings and reviews.
+
+📅 Bookings
+
+Tracks reservations made by users for specific properties.
+
+Key Fields:
+
+id: Unique booking identifier
+
+user_id: Foreign key referencing the guest (user)
+
+property_id: Foreign key referencing the booked property
+
+check_in_date: Start date of the booking
+
+check_out_date: End date of the booking
+
+Relationships:
+
+A booking belongs to one property.
+
+A booking is made by one user (guest).
+
+A booking can have one associated payment record.
+
+💳 Payments
+
+Handles all financial transactions between guests and hosts.
+
+Key Fields:
+
+id: Unique payment identifier
+
+booking_id: Foreign key referencing the related booking
+
+amount: Total payment amount
+
+payment_method: Method used (e.g., credit card, PayPal)
+
+status: Indicates whether payment is pending, completed, or failed
+
+Relationships:
+
+A payment belongs to one booking.
+
+A booking has one payment record.
+
+⭐ Reviews
+
+Captures feedback and ratings given by guests after their stay.
+
+Key Fields:
+
+id: Unique review identifier
+
+user_id: Foreign key referencing the guest (user)
+
+property_id: Foreign key referencing the reviewed property
+
+rating: Numeric rating (e.g., 1–5 stars)
+
+comment: Text feedback on the stay
+
+Relationships:
+
+A review is written by one user (guest).
+
+A review belongs to one property.
+
+🔗 Entity Relationships Summary
+
+User → Property: One-to-Many
+
+User → Booking: One-to-Many
+
+User → Review: One-to-Many
+
+Property → Booking: One-to-Many
+
+Property → Review: One-to-Many
+
+Booking → Payment: One-to-One
 
 
