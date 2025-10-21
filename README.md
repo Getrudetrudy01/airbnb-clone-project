@@ -351,6 +351,53 @@ Property → Booking: One-to-Many
 
 Property → Review: One-to-Many
 
+
+
+
+# 🔒 API Security
+
+Securing the backend API is essential to ensure that user data, financial transactions, and platform operations remain protected from unauthorized access or malicious activity. The Airbnb Clone Project integrates several layers of security to maintain data confidentiality, integrity, and availability.
+
+🔑 Authentication
+
+Implements secure user login and identity verification using JWT (JSON Web Tokens) or OAuth2.
+This ensures that only registered users can access protected endpoints and perform authorized actions.
+Why it’s important: Protects user accounts from unauthorized access and prevents impersonation attacks.
+
+🧾 Authorization
+
+Defines specific permissions and access control for different user roles — such as hosts, guests, and admins.
+Authorization ensures that users can only perform actions they are permitted to (e.g., a guest cannot edit another host’s property listing).
+Why it’s important: Prevents privilege escalation and maintains proper role-based security boundaries.
+
+🚦 Rate Limiting
+
+Restricts the number of API requests a user or client can make within a set time frame.
+By using tools like Django REST Framework throttling or NGINX rate limiting, the system prevents denial-of-service (DoS) attacks and API abuse.
+Why it’s important: Protects the server from being overwhelmed by malicious or excessive requests.
+
+🔐 Data Encryption
+
+Ensures that sensitive information — such as passwords, payment details, and personal data — is encrypted both in transit (using HTTPS/SSL) and at rest (in the database).
+Why it’s important: Safeguards user privacy and prevents data leaks or theft.
+
+🧱 Input Validation & Sanitization
+
+All API inputs are validated to prevent injection attacks (e.g., SQL Injection, XSS).
+Data is sanitized before being stored or processed to maintain data integrity.
+Why it’s important: Protects the backend from malicious payloads and ensures system stability.
+
+🧩 Error Handling & Logging
+
+Implements secure error responses that avoid exposing sensitive system information while maintaining detailed server-side logs for auditing and debugging.
+Why it’s important: Prevents attackers from gathering system details and helps in quick issue tracking during incidents.
+
+🕵️‍♀️ Secure Payment Processing
+
+Integrates trusted payment gateways and ensures all payment APIs comply with PCI DSS (Payment Card Industry Data Security Standard).
+Sensitive financial data is tokenized rather than stored directly in the database.
+Why it’s important: Protects user financial information and builds trust in the platform’s payment system.
+
 Booking → Payment: One-to-One
 
 
