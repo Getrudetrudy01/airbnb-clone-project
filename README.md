@@ -36,4 +36,3 @@ This project leverages a combination of modern technologies, including:
 
  Deployment Environment: Cloud-based (e.g., AWS, Heroku, or Render)
 
-Would you like me to add badges (like build status, license, or tech stack icons) and a table of contents next — or do you prefer we first move on to the next task (like team role documentation)?
