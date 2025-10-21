@@ -126,6 +126,52 @@ Facilitate team collaboration and workflow.
 Track progress and manage documentation.
 
 Ensure timely delivery and quality control.
+
+
+
+# 🧠 Technology Stack
+
+The Airbnb Clone Project is built using a collection of modern tools and frameworks that work together to deliver a scalable, secure, and high-performing application. Each technology in the stack plays a specific role in achieving these goals.
+
+🐍 Django
+
+A high-level Python web framework used for building robust, maintainable, and secure web applications.
+In this project, Django handles the backend logic, routing, user authentication, and API integration while following the Model-View-Template (MVT) architecture.
+
+🗃️ MySQL
+
+A powerful relational database management system (RDBMS) used to store and manage application data.
+MySQL ensures data integrity, relational mapping, and high performance for user profiles, listings, reservations, and payment records.
+
+🔗 GraphQL
+
+An advanced query language for APIs that provides clients with the ability to request specific data.
+GraphQL improves efficiency by minimizing over-fetching and under-fetching, offering flexibility when querying data across listings, users, and bookings.
+
+🐳 Docker
+
+A containerization platform that allows applications and dependencies to run consistently across multiple environments.
+Docker is used to containerize the Airbnb Clone application, simplifying development, testing, and deployment.
+
+⚙️ Git & GitHub
+
+A version control system (Git) and a collaboration platform (GitHub) used for managing source code, version tracking, and team collaboration.
+They support efficient teamwork, issue tracking, and CI/CD integrations.
+
+🚀 GitHub Actions
+
+An automation tool integrated into GitHub that enables CI/CD workflows.
+GitHub Actions automates testing, building, and deploying the Airbnb Clone, ensuring reliability and reducing manual effort.
+
+☁️ Cloud Deployment (AWS / Render / Heroku)
+
+A cloud hosting environment used to deploy the application and make it accessible to end users.
+This ensures scalability, performance, and continuous availability of the Airbnb Clone web platform.
+
+🔒 API Security Tools
+
+Includes libraries and middleware for implementing authentication (JWT, OAuth2), data validation, and encryption.
+These ensure that all communication between the client and server remains private and tamper-proof.
  
 
 
