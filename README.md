@@ -301,6 +301,52 @@ User → Booking: One-to-Many
 
 User → Review: One-to-Many
 
+
+
+# 🧩 Feature Breakdown
+
+The Airbnb Clone Project includes several core features that work together to deliver a seamless experience for both hosts and guests. Each feature is designed to mirror real-world Airbnb functionalities while showcasing strong backend and architectural design principles.
+
+👤 User Management
+
+Handles user registration, authentication, and profile management.
+This feature enables users to create accounts, log in securely, and manage personal information. It also distinguishes between hosts (who list properties) and guests (who book stays).
+
+🏠 Property Management
+
+Allows hosts to create, update, and delete property listings.
+Each property includes detailed descriptions, images, location data, and pricing. This feature ensures accurate representation of listings and simplifies the property discovery process for guests.
+
+📅 Booking System
+
+Facilitates the reservation of properties by guests.
+Users can select available dates, confirm bookings, and receive notifications. The system prevents overlapping reservations and maintains accurate booking records.
+
+💳 Payment Integration
+
+Manages secure payments between guests and hosts.
+It supports multiple payment methods and ensures that transactions are processed safely through encryption and validation. This feature provides transparency and trust in financial operations.
+
+⭐ Reviews and Ratings
+
+Allows guests to leave feedback on properties they’ve stayed in.
+Each review includes a written comment and a rating score, contributing to host credibility and helping future guests make informed decisions.
+
+🔐 Security and Authentication
+
+Implements secure user authentication using methods such as JWT or OAuth2.
+This feature ensures that only authorized users can access restricted endpoints, protecting sensitive user and transaction data from unauthorized access.
+
+⚙️ CI/CD and Deployment
+
+Automates the development workflow using GitHub Actions and Docker.
+Continuous Integration and Continuous Deployment ensure that code changes are tested, built, and deployed efficiently, reducing human errors and improving delivery speed.
+
+📊 Admin Dashboard (Optional Enhancement)
+
+Provides administrators with tools to manage users, properties, and payments.
+This feature enhances system oversight, allowing admins to monitor activity, verify listings, and ensure compliance with platform policies.
+
 Property → Booking: One-to-Many
 
 Property → Review: One-to-Many
