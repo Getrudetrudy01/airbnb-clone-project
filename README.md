@@ -509,5 +509,21 @@ requirements/   # base.txt (prod) and dev.txt (tooling)
 | POST | `/api/auth/login/` | — | Get `access` + `refresh` JWT tokens |
 | POST | `/api/auth/refresh/` | — | Get a new access token from a refresh token |
 | GET / PATCH | `/api/users/me/` | Bearer | View or update your profile |
+| GET | `/api/properties/` | — | List listings (filters below) |
+| POST | `/api/properties/` | Host | Create a listing |
+| GET | `/api/properties/{id}/` | — | Listing details |
+| PATCH / DELETE | `/api/properties/{id}/` | Owner | Update or delete a listing |
+| POST | `/api/properties/{id}/images/` | Owner | Upload an image (multipart, max 5 MB) |
+| DELETE | `/api/properties/{id}/images/{image_id}/` | Owner | Remove an image |
+| GET | `/api/properties/{id}/booked-dates/` | — | Upcoming booked date ranges |
+| GET | `/api/bookings/` | Bearer | Your bookings as guest and as host (`?status=`, `?property=`) |
+| POST | `/api/bookings/` | Bearer | Book a property (`property`, `check_in`, `check_out`, `guests`) |
+| GET | `/api/bookings/{id}/` | Guest or host | Booking details |
+| POST | `/api/bookings/{id}/confirm/` | Host | Confirm a pending booking |
+| POST | `/api/bookings/{id}/cancel/` | Guest or host | Cancel before check-in |
 
 Send the access token as `Authorization: Bearer <token>`. Access tokens last 15 minutes and refresh tokens 7 days. Register and login are limited to 10 requests per minute.
+
+**Listing filters:** `city`, `country`, `min_price`, `max_price`, `guests` (minimum capacity), `check_in` + `check_out` (only show available listings), `search` (title/description/location) and `ordering` (`price_per_night`, `-created_at`, ...).
+
+**Booking rules:** check-in can't be in the past, stays are 1–90 nights, guest count can't exceed the listing's limit, hosts can't book their own listings, and dates can't overlap an existing pending or confirmed booking (check-out day is free for the next guest). The total price is calculated by the server.
