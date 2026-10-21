@@ -8,6 +8,8 @@ urlpatterns = [
     path("api/", include("apps.users.urls")),
     path("api/", include("apps.properties.urls")),
     path("api/", include("apps.bookings.urls")),
+    path("api/", include("apps.reviews.urls")),
+    path("api/", include("apps.payments.urls")),
 ]
 
 if settings.DEBUG:

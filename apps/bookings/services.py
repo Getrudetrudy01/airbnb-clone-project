@@ -2,6 +2,8 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from apps.payments import services as payment_services
+from apps.payments.models import Payment
 from apps.properties.models import Property
 
 from .models import Booking
@@ -58,4 +60,9 @@ def cancel_booking(*, booking_id, user):
         raise ValidationError({"status": "Bookings cannot be cancelled on or after the check-in date."})
     booking.status = Booking.Status.CANCELLED
     booking.save(update_fields=["status", "updated_at"])
+
+    payment = Payment.objects.select_for_update().filter(booking=booking).first()
+    if payment and payment.status == Payment.Status.COMPLETED:
+        # If the refund fails, the whole transaction rolls back and the booking stays active.
+        payment_services.refund(payment)
     return booking

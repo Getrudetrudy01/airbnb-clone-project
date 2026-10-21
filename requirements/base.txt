@@ -3,6 +3,7 @@ djangorestframework>=3.16,<4
 djangorestframework-simplejwt>=5.3,<6
 django-filter>=24,<27
 Pillow>=11,<14
+stripe>=16,<17
 django-environ>=0.12,<1
 mysqlclient>=2.2,<3
 gunicorn>=23,<24

@@ -1,3 +1,4 @@
+from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -14,13 +15,19 @@ from .serializers import PropertyImageSerializer, PropertySerializer
 
 
 class PropertyViewSet(viewsets.ModelViewSet):
-    queryset = Property.objects.select_related("host").prefetch_related("images")
+    queryset = (
+        Property.objects.select_related("host")
+        .prefetch_related("images")
+        .annotate(average_rating=Avg("reviews__rating"), review_count=Count("reviews"))
+        # Aggregation drops Meta.ordering, so order explicitly for stable pagination.
+        .order_by("-created_at")
+    )
     serializer_class = PropertySerializer
     permission_classes = [IsHostOrReadOnly, IsOwnerOrReadOnly]
     filterset_class = PropertyFilter
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["title", "description", "city", "country"]
-    ordering_fields = ["price_per_night", "created_at"]
+    ordering_fields = ["price_per_night", "created_at", "average_rating"]
 
     def perform_create(self, serializer):
         serializer.save(host=self.request.user)

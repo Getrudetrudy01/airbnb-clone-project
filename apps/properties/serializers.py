@@ -20,6 +20,9 @@ class PropertyImageSerializer(serializers.ModelSerializer):
 class PropertySerializer(serializers.ModelSerializer):
     host = serializers.StringRelatedField(read_only=True)
     images = PropertyImageSerializer(many=True, read_only=True)
+    # Filled in by the view's queryset annotation; absent right after create/update.
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Property
@@ -34,7 +37,16 @@ class PropertySerializer(serializers.ModelSerializer):
             "price_per_night",
             "max_guests",
             "images",
+            "average_rating",
+            "review_count",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "host", "images", "created_at", "updated_at"]
+
+    def get_average_rating(self, obj):
+        value = getattr(obj, "average_rating", None)
+        return round(value, 2) if value is not None else None
+
+    def get_review_count(self, obj):
+        return getattr(obj, "review_count", 0)

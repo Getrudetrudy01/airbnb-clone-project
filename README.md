@@ -520,10 +520,29 @@ requirements/   # base.txt (prod) and dev.txt (tooling)
 | POST | `/api/bookings/` | Bearer | Book a property (`property`, `check_in`, `check_out`, `guests`) |
 | GET | `/api/bookings/{id}/` | Guest or host | Booking details |
 | POST | `/api/bookings/{id}/confirm/` | Host | Confirm a pending booking |
-| POST | `/api/bookings/{id}/cancel/` | Guest or host | Cancel before check-in |
+| POST | `/api/bookings/{id}/cancel/` | Guest or host | Cancel before check-in (refunds if paid) |
+| GET | `/api/reviews/` | — | List reviews (`?property=`, `?rating=`) |
+| POST | `/api/reviews/` | Guest | Review a finished, confirmed stay (`booking`, `rating` 1–5, `comment`) |
+| PATCH / DELETE | `/api/reviews/{id}/` | Author | Edit or delete your review |
+| POST | `/api/payments/checkout/` | Guest | Start Stripe Checkout for a booking; returns `checkout_url` |
+| GET | `/api/payments/` | Bearer | Payments for your bookings (as guest or host) |
+| POST | `/api/payments/webhook/` | Stripe signature | Stripe event receiver |
 
 Send the access token as `Authorization: Bearer <token>`. Access tokens last 15 minutes and refresh tokens 7 days. Register and login are limited to 10 requests per minute.
 
-**Listing filters:** `city`, `country`, `min_price`, `max_price`, `guests` (minimum capacity), `check_in` + `check_out` (only show available listings), `search` (title/description/location) and `ordering` (`price_per_night`, `-created_at`, ...).
+**Listing filters:** `city`, `country`, `min_price`, `max_price`, `guests` (minimum capacity), `check_in` + `check_out` (only show available listings), `search` (title/description/location) and `ordering` (`price_per_night`, `average_rating`, `-created_at`, ...). Each listing includes `average_rating` and `review_count`.
 
 **Booking rules:** check-in can't be in the past, stays are 1–90 nights, guest count can't exceed the listing's limit, hosts can't book their own listings, and dates can't overlap an existing pending or confirmed booking (check-out day is free for the next guest). The total price is calculated by the server.
+
+### Payments (Stripe test mode)
+
+1. Create a free Stripe account and copy the **test** secret key into `STRIPE_SECRET_KEY` in `.env`.
+2. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli) and forward webhooks to your local server:
+   ```bash
+   stripe login
+   stripe listen --forward-to localhost:8000/api/payments/webhook/
+   ```
+   Put the `whsec_...` secret it prints into `STRIPE_WEBHOOK_SECRET`, then restart the server.
+3. Create a booking, `POST /api/payments/checkout/` with its id, open the returned `checkout_url` and pay with test card `4242 4242 4242 4242` (any future date, any CVC).
+
+When Stripe reports the payment, the booking becomes **confirmed**. Cancelling a paid booking refunds it in full. Card details only ever go to Stripe.

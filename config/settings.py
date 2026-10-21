@@ -129,6 +129,15 @@ SIMPLE_JWT = {
 }
 
 
+# Payments (Stripe). Leave the keys empty to disable payments.
+
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+PAYMENTS_CURRENCY = env("PAYMENTS_CURRENCY", default="usd")
+# Where Stripe sends the guest after checkout.
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000").rstrip("/")
+
+
 # Internationalization
 
 LANGUAGE_CODE = "en-us"
