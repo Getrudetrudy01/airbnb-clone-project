@@ -446,3 +446,57 @@ Testing Frameworks (e.g., Pytest, Django Test): Ensure that the code meets funct
 
 
 
+
+
+
+# 🛠️ Getting Started
+
+### Prerequisites
+
+- Python 3.13+
+- (Optional) Docker Desktop, to run with MySQL
+
+### Local setup (SQLite, no Docker)
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate   |   macOS/Linux: source .venv/bin/activate
+pip install -r requirements/dev.txt
+cp .env.example .env          # then set SECRET_KEY
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Visit http://127.0.0.1:8000/admin/.
+
+### Docker setup (MySQL)
+
+```bash
+cp .env.example .env
+docker compose up --build
+docker compose exec web python manage.py createsuperuser
+```
+
+### Quality checks
+
+```bash
+ruff check .          # lint
+ruff format .         # format
+pytest                # tests
+```
+
+These same checks run in GitHub Actions on every push and pull request.
+
+### Project structure
+
+```
+config/         # Django settings, root URLs, WSGI/ASGI
+apps/
+  users/        # Custom User model (email login, guest/host/admin roles)
+  properties/   # Listings
+  bookings/     # Reservations
+  reviews/      # Ratings & comments
+  payments/     # Payment records
+requirements/   # base.txt (prod) and dev.txt (tooling)
+```
