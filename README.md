@@ -590,29 +590,12 @@ Pending bookings older than `BOOKING_PAYMENT_WINDOW_MINUTES` (default 60) withou
 
 # 🚀 Deployment
 
-The app ships as a Docker image that serves the API with Gunicorn and static files with WhiteNoise.
+The app deploys to **Railway** as one Docker image: Django serves the API, the admin and the built React app on the same domain. Step-by-step instructions, including MySQL, photo storage, the cron job and Stripe, are in **[docs/deploy-railway.md](docs/deploy-railway.md)**.
 
-**Checklist**
+| File | Purpose |
+|---|---|
+| `Dockerfile` | Builds the frontend, then the Django image (Gunicorn + WhiteNoise) |
+| `railway.json` | Web service: `migrate` before each deploy, health check on `/api/health/` |
+| `railway.cron.json` | Cron service: `expire_unpaid_bookings` every 15 minutes |
 
-1. Provision a MySQL 8 database and set `DATABASE_URL`.
-2. Set environment variables:
-
-   | Variable | Example / note |
-   |---|---|
-   | `SECRET_KEY` | Long random string, unique per environment |
-   | `DEBUG` | `False` |
-   | `ALLOWED_HOSTS` | `api.example.com` |
-   | `CSRF_TRUSTED_ORIGINS` | `https://api.example.com` (needed for the admin over HTTPS) |
-   | `CORS_ALLOWED_ORIGINS` | `https://app.example.com` (your frontend) |
-   | `FRONTEND_URL` | `https://app.example.com` (Stripe redirects here) |
-   | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | From the Stripe dashboard; webhook endpoint is `https://<host>/api/payments/webhook/` |
-   | `SECURE_HSTS_SECONDS` | Starts at 3600; raise to `31536000` once HTTPS works |
-
-3. Run `python manage.py migrate` as the pre-deploy / release command.
-4. Point the platform's health check at `/api/health/`.
-5. Schedule `python manage.py expire_unpaid_bookings` (see above).
-6. Create an admin: `python manage.py createsuperuser`.
-
-**Known limitation:** uploaded property images are stored on the container's local disk, which most platforms wipe on every deploy. Before going live, switch the `default` storage to S3 or Cloudinary (e.g. with `django-storages`).
-
-CI runs `python manage.py check --deploy` with production settings on every push, so security misconfigurations fail the build.
+CI runs the tests with `DEBUG=False` and `python manage.py check --deploy` on every push, and builds the frontend, so security misconfigurations and frontend type errors fail the build.

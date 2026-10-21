@@ -1,3 +1,14 @@
+# --- Stage 1: build the React frontend ----------------------------------------
+FROM node:24-slim AS frontend
+
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+
+# --- Stage 2: the Django app, which also serves the built frontend --------------
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,14 +28,15 @@ COPY requirements/ requirements/
 RUN pip install -r requirements/${REQUIREMENTS}
 
 COPY . .
+COPY --from=frontend /frontend/dist /app/frontend/dist
 
 # Static files are baked into the image; the key is only needed for Django to start.
 RUN SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput
 
-# Don't run as root.
+# Don't run as root. (A Railway volume mounts as root: see docs/deploy-railway.md.)
 RUN useradd --create-home appuser && mkdir -p /app/media && chown -R appuser /app/media
 USER appuser
 
 EXPOSE 8000
-# Run `python manage.py migrate` as a pre-deploy/release step on your hosting platform.
+# Migrations run as a pre-deploy step (railway.json), not on every container start.
 CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-3} --access-logfile -"]

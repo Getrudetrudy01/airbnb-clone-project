@@ -5,6 +5,7 @@ All environment-specific values are read from environment variables
 (or a local .env file). See .env.example for the full list.
 """
 
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -21,6 +22,14 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+
+# On Railway, trust the service's public domain automatically, and the host its
+# health checker uses, so a fresh deploy works without extra configuration.
+RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default="")
+if RAILWAY_PUBLIC_DOMAIN:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+if env("RAILWAY_ENVIRONMENT_NAME", default=""):
+    ALLOWED_HOSTS.append("healthcheck.railway.app")
 
 
 # Application definition
@@ -163,13 +172,16 @@ STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 PAYMENTS_CURRENCY = env("PAYMENTS_CURRENCY", default="usd")
 # Where Stripe sends the guest after checkout.
-FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000").rstrip("/")
+_default_frontend = f"https://{RAILWAY_PUBLIC_DOMAIN}" if RAILWAY_PUBLIC_DOMAIN else "http://localhost:3000"
+FRONTEND_URL = env("FRONTEND_URL", default=_default_frontend).rstrip("/")
 
 
 # CORS / CSRF: which browser origins may call the API.
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[FRONTEND_URL])
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS", default=[f"https://{RAILWAY_PUBLIC_DOMAIN}"] if RAILWAY_PUBLIC_DOMAIN else []
+)
 
 
 # Internationalization
@@ -191,10 +203,39 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
+# The built React app (frontend/dist). WhiteNoise serves its assets; config.views.spa serves
+# index.html for every page route, so the site and the API share one domain.
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+if FRONTEND_DIST.is_dir():
+    WHITENOISE_ROOT = FRONTEND_DIST
+
+
+def _is_immutable(path, url):
+    # Vite puts content-hashed files under /assets/; Django's manifest adds 12-hex-digit hashes.
+    return url.startswith("/assets/") or re.match(r"^.+\.[0-9a-f]{12}\..+$", url) is not None
+
+
+WHITENOISE_IMMUTABLE_FILE_TEST = _is_immutable
+
 # Uploaded files (property images)
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
+
+# Production photo storage, in order of preference:
+#  1. An S3-compatible bucket (AWS S3, Cloudflare R2, ...): set AWS_STORAGE_BUCKET_NAME and friends.
+#  2. A persistent disk (e.g. a Railway volume) at MEDIA_ROOT, with SERVE_MEDIA=True.
+# Without either, uploads live on the container's disk and vanish on redeploy.
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+if AWS_STORAGE_BUCKET_NAME:
+    STORAGES["default"] = {"BACKEND": "storages.backends.s3.S3Storage"}
+    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default=None)  # Needed for R2 and other non-AWS hosts.
+    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default=None)
+    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN", default=None)  # A public URL for the bucket, if any.
+    AWS_QUERYSTRING_AUTH = AWS_S3_CUSTOM_DOMAIN is None  # Signed URLs unless the bucket is public.
+    AWS_S3_FILE_OVERWRITE = False
+    # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are read from the environment by boto3.
+SERVE_MEDIA = env.bool("SERVE_MEDIA", default=False)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -220,6 +261,8 @@ if not DEBUG:
     # Hosting platforms terminate HTTPS at a proxy and forward plain HTTP.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    # Platform health checks call over plain HTTP from inside the network.
+    SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     # Start low; raise to 31536000 (1 year) once HTTPS is confirmed working.

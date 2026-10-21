@@ -1,10 +1,10 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from .views import HealthView
+from .views import HealthView, spa
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -19,6 +19,9 @@ urlpatterns = [
     path("api/", include("apps.payments.urls")),
 ]
 
-if settings.DEBUG:
-    # In production, uploaded media is served by the web server or cloud storage.
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG or settings.SERVE_MEDIA:
+    # Uploaded photos from local disk. With a storage bucket configured, photo URLs point there instead.
+    urlpatterns.append(re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}))
+
+# Everything else is a page of the React app. Must stay last.
+urlpatterns.append(re_path(r"^(?!api/|admin/|static/|media/).*$", spa, name="spa"))
