@@ -1,0 +1,72 @@
+/*
+ * Keyhouse design tokens.
+ * Palette: cool plaster walls, pine for actions, and key-tag amber used only for the tag motif.
+ * Brick is reserved for errors and cancellation.
+ */
+:root {
+  /* Surfaces */
+  --plaster: #eef1ec;
+  --card: #fafbf8;
+  --wash: #e3e8e1;
+
+  /* Ink */
+  --ink: #17201d;
+  --ink-2: #4f5b56;
+  --ink-3: #75807b;
+  --line: #d3d9d1;
+  --line-strong: #b4beb2;
+
+  /* Pine: primary actions and selection */
+  --pine: #1e5a52;
+  --pine-deep: #123b35;
+  --pine-wash: #dce8e3;
+
+  /* Amber: the key tag */
+  --amber: #f0a732;
+  --amber-light: #f7bd55;
+  --amber-deep: #c47d16;
+  --amber-ink: #523500;
+  --amber-wash: #fbebcd;
+  --brass: #d6b26a;
+
+  /* Brick: errors and cancellation */
+  --brick: #b4402f;
+  --brick-ink: #7a2519;
+  --brick-wash: #f6ddd7;
+
+  --sage: #9db59a;
+  --success: #3e7c3a;
+  --success-wash: #e1eedb;
+
+  /* Type */
+  --font-display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --step--2: 0.6875rem; /* 11px: mono labels */
+  --step--1: 0.8125rem; /* 13px */
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.875rem, 3.2vw, 2.5rem);
+  --step-4: clamp(2.5rem, 5.5vw, 4rem);
+  --step-hero: clamp(4.25rem, 11.5vw, 9.75rem);
+
+  /* Shape */
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+
+  /* Layout */
+  --max: 1280px;
+  --gutter: clamp(16px, 4vw, 48px);
+
+  /* Depth */
+  --shadow-soft: 0 1px 2px rgb(23 32 29 / 6%), 0 8px 24px -12px rgb(23 32 29 / 18%);
+  --shadow-lift: 0 2px 4px rgb(23 32 29 / 8%), 0 18px 36px -18px rgb(23 32 29 / 35%);
+  --shadow-tag: inset 0 1px 0 rgb(255 255 255 / 45%), inset 0 -2px 0 rgb(82 53 0 / 12%),
+    0 26px 44px -22px rgb(23 32 29 / 55%), 0 6px 12px -6px rgb(23 32 29 / 30%);
+
+  --ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
+}
