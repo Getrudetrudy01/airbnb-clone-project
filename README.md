@@ -446,3 +446,173 @@ Testing Frameworks (e.g., Pytest, Django Test): Ensure that the code meets funct
 
 
 
+
+
+
+# 🛠️ Getting Started
+
+### Prerequisites
+
+- Python 3.13+
+- (Optional) Docker Desktop, to run with MySQL
+
+### Local setup (SQLite, no Docker)
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate   |   macOS/Linux: source .venv/bin/activate
+pip install -r requirements/dev.txt
+cp .env.example .env          # then set SECRET_KEY
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Visit http://127.0.0.1:8000/admin/.
+
+### Docker setup (MySQL)
+
+```bash
+cp .env.example .env
+docker compose up --build
+docker compose exec web python manage.py createsuperuser
+```
+
+### Quality checks
+
+```bash
+ruff check .          # lint
+ruff format .         # format
+pytest                # tests
+pytest --cov=apps     # tests with coverage report
+```
+
+These same checks run in GitHub Actions on every push and pull request.
+
+### Project structure
+
+```
+config/         # Django settings, root URLs, WSGI/ASGI
+apps/
+  users/        # Custom User model (email login, guest/host/admin roles)
+  properties/   # Listings
+  bookings/     # Reservations
+  reviews/      # Ratings & comments
+  payments/     # Payment records
+requirements/   # base.txt (prod) and dev.txt (tooling)
+```
+
+### Demo data
+
+```bash
+python manage.py seed_demo          # 12 listings, hosts, guests, past stays and reviews
+python manage.py seed_demo --reset  # wipe and recreate the demo accounts
+```
+
+Log in as `guest@demo.keyhouse.test` (guest) or `amara@demo.keyhouse.test` (host). Password: `Keyhouse-demo-2026`.
+
+### Frontend (React)
+
+The web app lives in [`frontend/`](frontend/): React 19, TypeScript, React Router and TanStack Query, built with Vite.
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:3000, proxies /api and /media to Django on :8000
+npm run build      # type-check and build to frontend/dist
+```
+
+Run Django (`python manage.py runserver`) at the same time. Pages: stay search, stay details with an availability calendar and booking, trips (pay, cancel, review), and hosting (booking requests, listing editor, photo uploads).
+
+### API documentation
+
+With the server running, interactive docs are at:
+
+- **Swagger UI:** http://127.0.0.1:8000/api/docs/ (click **Authorize** and paste an access token to try protected endpoints)
+- **ReDoc:** http://127.0.0.1:8000/api/redoc/
+- **OpenAPI schema:** http://127.0.0.1:8000/api/schema/
+
+### API endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register/` | — | Create an account (`role`: `guest` or `host`) |
+| POST | `/api/auth/login/` | — | Get `access` + `refresh` JWT tokens |
+| POST | `/api/auth/refresh/` | — | Get a new access token from a refresh token |
+| GET / PATCH | `/api/users/me/` | Bearer | View or update your profile |
+| GET | `/api/properties/` | — | List listings (filters below) |
+| POST | `/api/properties/` | Host | Create a listing |
+| GET | `/api/properties/{id}/` | — | Listing details |
+| PATCH / DELETE | `/api/properties/{id}/` | Owner | Update or delete a listing |
+| POST | `/api/properties/{id}/images/` | Owner | Upload an image (multipart, max 5 MB) |
+| DELETE | `/api/properties/{id}/images/{image_id}/` | Owner | Remove an image |
+| GET | `/api/properties/{id}/booked-dates/` | — | Upcoming booked date ranges |
+| GET | `/api/bookings/` | Bearer | Your bookings as guest and as host (`?status=`, `?property=`) |
+| POST | `/api/bookings/` | Bearer | Book a property (`property`, `check_in`, `check_out`, `guests`) |
+| GET | `/api/bookings/{id}/` | Guest or host | Booking details |
+| POST | `/api/bookings/{id}/confirm/` | Host | Confirm a pending booking |
+| POST | `/api/bookings/{id}/cancel/` | Guest or host | Cancel before check-in (refunds if paid) |
+| GET | `/api/reviews/` | — | List reviews (`?property=`, `?rating=`) |
+| POST | `/api/reviews/` | Guest | Review a finished, confirmed stay (`booking`, `rating` 1–5, `comment`) |
+| PATCH / DELETE | `/api/reviews/{id}/` | Author | Edit or delete your review |
+| POST | `/api/payments/checkout/` | Guest | Start Stripe Checkout for a booking; returns `checkout_url` |
+| GET | `/api/payments/` | Bearer | Payments for your bookings (as guest or host) |
+| POST | `/api/payments/webhook/` | Stripe signature | Stripe event receiver |
+
+Send the access token as `Authorization: Bearer <token>`. Access tokens last 15 minutes and refresh tokens 7 days. Register and login are limited to 10 requests per minute.
+
+**Listing filters:** `city`, `country`, `min_price`, `max_price`, `guests` (minimum capacity), `check_in` + `check_out` (only show available listings), `search` (title/description/location) and `ordering` (`price_per_night`, `average_rating`, `-created_at`, ...). Each listing includes `average_rating` and `review_count`.
+
+**Booking rules:** check-in can't be in the past, stays are 1–90 nights, guest count can't exceed the listing's limit, hosts can't book their own listings, and dates can't overlap an existing pending or confirmed booking (check-out day is free for the next guest). The total price is calculated by the server.
+
+### Payments (Stripe test mode)
+
+1. Create a free Stripe account and copy the **test** secret key into `STRIPE_SECRET_KEY` in `.env`.
+2. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli) and forward webhooks to your local server:
+   ```bash
+   stripe login
+   stripe listen --forward-to localhost:8000/api/payments/webhook/
+   ```
+   Put the `whsec_...` secret it prints into `STRIPE_WEBHOOK_SECRET`, then restart the server.
+3. Create a booking, `POST /api/payments/checkout/` with its id, open the returned `checkout_url` and pay with test card `4242 4242 4242 4242` (any future date, any CVC).
+
+When Stripe reports the payment, the booking becomes **confirmed**. Cancelling a paid booking refunds it in full. Card details only ever go to Stripe.
+
+### Scheduled jobs
+
+Unpaid bookings hold their dates, so cancel stale ones on a schedule (every 10–15 minutes):
+
+```bash
+python manage.py expire_unpaid_bookings
+```
+
+Pending bookings older than `BOOKING_PAYMENT_WINDOW_MINUTES` (default 60) without a completed payment are cancelled. Use your platform's cron jobs (e.g. Render Cron Job, Railway cron, or a system crontab).
+
+# 🚀 Deployment
+
+The app ships as a Docker image that serves the API with Gunicorn and static files with WhiteNoise.
+
+**Checklist**
+
+1. Provision a MySQL 8 database and set `DATABASE_URL`.
+2. Set environment variables:
+
+   | Variable | Example / note |
+   |---|---|
+   | `SECRET_KEY` | Long random string, unique per environment |
+   | `DEBUG` | `False` |
+   | `ALLOWED_HOSTS` | `api.example.com` |
+   | `CSRF_TRUSTED_ORIGINS` | `https://api.example.com` (needed for the admin over HTTPS) |
+   | `CORS_ALLOWED_ORIGINS` | `https://app.example.com` (your frontend) |
+   | `FRONTEND_URL` | `https://app.example.com` (Stripe redirects here) |
+   | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | From the Stripe dashboard; webhook endpoint is `https://<host>/api/payments/webhook/` |
+   | `SECURE_HSTS_SECONDS` | Starts at 3600; raise to `31536000` once HTTPS works |
+
+3. Run `python manage.py migrate` as the pre-deploy / release command.
+4. Point the platform's health check at `/api/health/`.
+5. Schedule `python manage.py expire_unpaid_bookings` (see above).
+6. Create an admin: `python manage.py createsuperuser`.
+
+**Known limitation:** uploaded property images are stored on the container's local disk, which most platforms wipe on every deploy. Before going live, switch the `default` storage to S3 or Cloudinary (e.g. with `django-storages`).
+
+CI runs `python manage.py check --deploy` with production settings on every push, so security misconfigurations fail the build.
