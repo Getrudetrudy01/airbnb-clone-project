@@ -73,3 +73,10 @@ def _plain_static_storage(settings):
         **settings.STORAGES,
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
+
+
+@pytest.fixture(autouse=True)
+def _no_https_redirect(settings):
+    # With DEBUG off (as in CI), production settings redirect HTTP to HTTPS;
+    # the test client speaks plain HTTP, so every request would get a 301.
+    settings.SECURE_SSL_REDIRECT = False
