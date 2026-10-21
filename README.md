@@ -500,3 +500,14 @@ apps/
   payments/     # Payment records
 requirements/   # base.txt (prod) and dev.txt (tooling)
 ```
+
+### API endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register/` | — | Create an account (`role`: `guest` or `host`) |
+| POST | `/api/auth/login/` | — | Get `access` + `refresh` JWT tokens |
+| POST | `/api/auth/refresh/` | — | Get a new access token from a refresh token |
+| GET / PATCH | `/api/users/me/` | Bearer | View or update your profile |
+
+Send the access token as `Authorization: Bearer <token>`. Access tokens last 15 minutes and refresh tokens 7 days. Register and login are limited to 10 requests per minute.
