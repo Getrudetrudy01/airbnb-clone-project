@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.users.serializers import PublicUserSerializer
+
 from .models import Property, PropertyImage
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -18,7 +20,7 @@ class PropertyImageSerializer(serializers.ModelSerializer):
 
 
 class PropertySerializer(serializers.ModelSerializer):
-    host = serializers.StringRelatedField(read_only=True)
+    host = PublicUserSerializer(read_only=True)
     images = PropertyImageSerializer(many=True, read_only=True)
     # Filled in by the view's queryset annotation; absent right after create/update.
     average_rating = serializers.SerializerMethodField()
@@ -44,9 +46,9 @@ class PropertySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "host", "images", "created_at", "updated_at"]
 
-    def get_average_rating(self, obj):
+    def get_average_rating(self, obj) -> float | None:
         value = getattr(obj, "average_rating", None)
         return round(value, 2) if value is not None else None
 
-    def get_review_count(self, obj):
+    def get_review_count(self, obj) -> int:
         return getattr(obj, "review_count", 0)

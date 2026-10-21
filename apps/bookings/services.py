@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -7,6 +10,34 @@ from apps.payments.models import Payment
 from apps.properties.models import Property
 
 from .models import Booking
+
+
+def expire_unpaid_bookings(*, now=None):
+    """Cancel pending bookings left unpaid past the payment window. Returns how many were cancelled."""
+    now = now or timezone.now()
+    cutoff = now - timedelta(minutes=settings.BOOKING_PAYMENT_WINDOW_MINUTES)
+    stale_ids = list(
+        Booking.objects.filter(status=Booking.Status.PENDING, created_at__lt=cutoff)
+        .exclude(payment__status=Payment.Status.COMPLETED)
+        .values_list("pk", flat=True)
+    )
+
+    cancelled = 0
+    for booking_id in stale_ids:
+        # One transaction per booking, re-checked under lock, so a payment landing
+        # mid-run is never cancelled.
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().get(pk=booking_id)
+            payment = Payment.objects.select_for_update().filter(booking=booking).first()
+            if booking.status != Booking.Status.PENDING or (payment and payment.status == Payment.Status.COMPLETED):
+                continue
+            booking.status = Booking.Status.CANCELLED
+            booking.save(update_fields=["status", "updated_at"])
+            if payment and payment.status == Payment.Status.PENDING:
+                payment.status = Payment.Status.FAILED
+                payment.save(update_fields=["status", "updated_at"])
+            cancelled += 1
+    return cancelled
 
 
 @transaction.atomic

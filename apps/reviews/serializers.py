@@ -2,12 +2,13 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.bookings.models import Booking
+from apps.users.serializers import PublicUserSerializer
 
 from .models import Review
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    author = serializers.StringRelatedField(read_only=True)
+    author = PublicUserSerializer(read_only=True)
     # Narrowed to the requesting user's bookings in get_fields.
     booking = serializers.PrimaryKeyRelatedField(queryset=Booking.objects.none())
 

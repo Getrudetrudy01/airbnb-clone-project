@@ -17,7 +17,10 @@ services:
       retries: 10
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        REQUIREMENTS: dev.txt
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     env_file: .env
     environment:

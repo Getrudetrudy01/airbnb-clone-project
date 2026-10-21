@@ -7,7 +7,7 @@ User = get_user_model()
 @pytest.mark.django_db
 def test_create_user_defaults_to_guest():
     user = User.objects.create_user(email="Guest@Example.com", password="s3cret-pass")
-    assert user.email == "Guest@example.com"
+    assert user.email == "guest@example.com"
     assert user.role == User.Role.GUEST
     assert user.check_password("s3cret-pass")
     assert not user.is_staff
@@ -132,3 +132,25 @@ def test_me_update_ignores_read_only_fields(api_client, user):
 def test_login_is_rate_limited(api_client, user):
     statuses = [login(api_client, user.email, password="wrong").status_code for _ in range(11)]
     assert statuses[-1] == 429
+
+
+# --- Email case-insensitivity ---------------------------------------------
+
+
+@pytest.mark.django_db
+def test_register_lowercases_email(api_client):
+    response = api_client.post(REGISTER_URL, {"email": "Mixed@Example.COM", "password": STRONG_PASSWORD}, format="json")
+    assert response.status_code == 201
+    assert response.data["email"] == "mixed@example.com"
+
+
+@pytest.mark.django_db
+def test_register_rejects_duplicate_email_in_other_case(api_client, user):
+    response = api_client.post(REGISTER_URL, {"email": "JANE@example.com", "password": STRONG_PASSWORD}, format="json")
+    assert response.status_code == 400
+    assert User.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_login_is_case_insensitive(api_client, user):
+    assert login(api_client, "Jane@Example.com").status_code == 200

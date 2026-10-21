@@ -45,7 +45,8 @@ def test_anyone_can_list_and_view(api_client, make_property):
     assert api_client.get(LIST_URL).data["count"] == 1
     response = api_client.get(detail_url(listing.pk))
     assert response.status_code == 200
-    assert response.data["host"] == listing.host.email
+    assert response.data["host"] == {"id": listing.host.pk, "name": listing.host.display_name}
+    assert listing.host.email not in str(response.data)
 
 
 # --- Create / update / delete permissions --------------------------------
@@ -133,6 +134,15 @@ def test_filter_by_availability(api_client, make_property, guest):
     params = {"check_in": start + timedelta(days=1), "check_out": start + timedelta(days=5)}
     results = api_client.get(LIST_URL, params).data["results"]
     assert [p["title"] for p in results] == ["Free"]
+
+
+@pytest.mark.django_db
+def test_filter_by_host(api_client, make_property, make_user):
+    other_host = make_user(role="host")
+    make_property(title="Mine")
+    make_property(title="Theirs", host=other_host)
+    results = api_client.get(LIST_URL, {"host": other_host.pk}).data["results"]
+    assert [p["title"] for p in results] == ["Theirs"]
 
 
 @pytest.mark.django_db

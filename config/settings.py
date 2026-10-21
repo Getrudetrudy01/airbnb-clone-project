@@ -38,6 +38,8 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
+    "corsheaders",
+    "drf_spectacular",
 ]
 
 LOCAL_APPS = [
@@ -52,7 +54,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -87,6 +91,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
 }
+# Reuse database connections between requests instead of reconnecting every time.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
+    # MySQL's legacy "utf8" can't store emoji; utf8mb4 can.
+    DATABASES["default"].setdefault("OPTIONS", {})["charset"] = "utf8mb4"
 
 
 # Authentication
@@ -113,11 +122,16 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
+        "anon": env("ANON_THROTTLE_RATE", default="60/min"),
+        "user": env("USER_THROTTLE_RATE", default="300/min"),
         "auth": env("AUTH_THROTTLE_RATE", default="10/min"),
     },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
@@ -128,6 +142,20 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Airbnb Clone API",
+    "DESCRIPTION": "Listings, bookings, reviews and payments. Send `Authorization: Bearer <access token>`.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
+
+
+# Bookings
+
+# Pending bookings that aren't paid within this window are cancelled by the
+# `expire_unpaid_bookings` management command, freeing their dates.
+BOOKING_PAYMENT_WINDOW_MINUTES = env.int("BOOKING_PAYMENT_WINDOW_MINUTES", default=60)
+
 
 # Payments (Stripe). Leave the keys empty to disable payments.
 
@@ -136,6 +164,12 @@ STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 PAYMENTS_CURRENCY = env("PAYMENTS_CURRENCY", default="usd")
 # Where Stripe sends the guest after checkout.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000").rstrip("/")
+
+
+# CORS / CSRF: which browser origins may call the API.
+
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[FRONTEND_URL])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 
 # Internationalization
@@ -151,9 +185,46 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # WhiteNoise serves compressed, cache-busted static files without a separate web server.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
 # Uploaded files (property images)
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Logging: everything to stdout, where hosting platforms collect it.
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {"format": "{asctime} {levelname} {name}: {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+    },
+    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
+}
+
+
+# Production security (only when DEBUG is off)
+
+if not DEBUG:
+    # Hosting platforms terminate HTTPS at a proxy and forward plain HTTP.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Start low; raise to 31536000 (1 year) once HTTPS is confirmed working.
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=3600)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+
+# HSTS preload is a long-term commitment for a whole domain; opt in deliberately.
+SILENCED_SYSTEM_CHECKS = ["security.W021"]

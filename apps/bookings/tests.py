@@ -203,3 +203,59 @@ def test_booked_dates_lists_active_future_ranges(api_client, guest, listing):
     response = api_client.get(f"/api/properties/{listing.pk}/booked-dates/")
     assert response.status_code == 200
     assert response.data == [{"check_in": days_from_now(5), "check_out": days_from_now(7)}]
+
+
+# --- Expiring unpaid bookings ---------------------------------------------
+
+
+def make_aged_booking(guest, listing, minutes_old, **kwargs):
+    booking = Booking.objects.create(
+        guest=guest,
+        property=listing,
+        check_in=days_from_now(10),
+        check_out=days_from_now(12),
+        total_price="200.00",
+        **kwargs,
+    )
+    # created_at is auto_now_add, so backdate it with an update.
+    Booking.objects.filter(pk=booking.pk).update(created_at=timezone.now() - timedelta(minutes=minutes_old))
+    return booking
+
+
+@pytest.mark.django_db
+def test_expire_cancels_only_old_unpaid_pending_bookings(guest, listing, make_property, settings):
+    from apps.payments.models import Payment
+
+    from .services import expire_unpaid_bookings
+
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    other = make_property(title="Other")
+    stale = make_aged_booking(guest, listing, minutes_old=90)
+    stale_with_failed_payment = make_aged_booking(guest, make_property(title="Third"), minutes_old=90)
+    Payment.objects.create(booking=stale_with_failed_payment, amount="200", currency="usd")
+    fresh = make_aged_booking(guest, other, minutes_old=10)
+    paid = make_aged_booking(guest, make_property(title="Paid"), minutes_old=90)
+    Payment.objects.create(booking=paid, amount="200", currency="usd", status=Payment.Status.COMPLETED)
+    confirmed = make_aged_booking(guest, make_property(title="Conf"), minutes_old=90, status=Booking.Status.CONFIRMED)
+
+    assert expire_unpaid_bookings() == 2
+
+    statuses = {b.pk: b.status for b in Booking.objects.all()}
+    assert statuses[stale.pk] == Booking.Status.CANCELLED
+    assert statuses[stale_with_failed_payment.pk] == Booking.Status.CANCELLED
+    assert statuses[fresh.pk] == Booking.Status.PENDING
+    assert statuses[paid.pk] == Booking.Status.PENDING
+    assert statuses[confirmed.pk] == Booking.Status.CONFIRMED
+    assert Payment.objects.get(booking=stale_with_failed_payment).status == Payment.Status.FAILED
+
+
+@pytest.mark.django_db
+def test_expire_command_runs(guest, listing):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    make_aged_booking(guest, listing, minutes_old=600)
+    out = StringIO()
+    call_command("expire_unpaid_bookings", stdout=out)
+    assert "Cancelled 1 unpaid booking(s)" in out.getvalue()

@@ -49,4 +49,11 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run tests
-        run: pytest
+        run: pytest --cov=apps --cov=config --cov-report=term-missing
+
+      - name: Check production settings
+        env:
+          DEBUG: "False"
+          SECRET_KEY: ci-only-a-long-random-looking-string-that-is-not-used-anywhere-else-1234567890
+          ALLOWED_HOSTS: example.com
+        run: python manage.py check --deploy --fail-level WARNING

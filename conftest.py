@@ -64,3 +64,12 @@ def make_property(host):
         return Property.objects.create(**{**defaults, **kwargs})
 
     return _make_property
+
+
+@pytest.fixture(autouse=True)
+def _plain_static_storage(settings):
+    # The production manifest storage needs `collectstatic` first; tests don't.
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }

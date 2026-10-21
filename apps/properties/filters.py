@@ -12,12 +12,13 @@ class PropertyFilter(django_filters.FilterSet):
     min_price = django_filters.NumberFilter(field_name="price_per_night", lookup_expr="gte")
     max_price = django_filters.NumberFilter(field_name="price_per_night", lookup_expr="lte")
     guests = django_filters.NumberFilter(field_name="max_guests", lookup_expr="gte")
+    host = django_filters.NumberFilter(field_name="host_id")
     check_in = django_filters.DateFilter(method="filter_available")
     check_out = django_filters.DateFilter(method="filter_available")
 
     class Meta:
         model = Property
-        fields = ["city", "country", "min_price", "max_price", "guests"]
+        fields = ["city", "country", "min_price", "max_price", "guests", "host"]
 
     def filter_available(self, queryset, name, value):
         # Both dates are handled together in filter_queryset; this is a no-op per field.

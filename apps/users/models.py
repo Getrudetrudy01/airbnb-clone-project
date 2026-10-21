@@ -7,6 +7,15 @@ class UserManager(BaseUserManager):
 
     use_in_migrations = True
 
+    @classmethod
+    def normalize_email(cls, email):
+        # Treat Jane@Example.com and jane@example.com as the same account.
+        return super().normalize_email(email).lower()
+
+    def get_by_natural_key(self, email):
+        # Used by login; makes it case-insensitive.
+        return self.get(email__iexact=email)
+
     def _create_user(self, email, password, **extra_fields):
         if not email:
             raise ValueError("An email address is required.")
@@ -47,6 +56,14 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    @property
+    def display_name(self):
+        """Public-facing name: "Jane D." Never exposes the email address."""
+        if self.first_name:
+            initial = f" {self.last_name[0]}." if self.last_name else ""
+            return f"{self.first_name}{initial}"
+        return "Keyhouse member"
 
     @property
     def is_host(self):

@@ -26,6 +26,8 @@ class BookingViewSet(
     filterset_fields = ["status", "property"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # API schema generation has no real user.
+            return Booking.objects.none()
         user = self.request.user
         return Booking.objects.select_related("property", "guest").filter(Q(guest=user) | Q(property__host=user))
 

@@ -3,7 +3,8 @@ import logging
 import stripe
 from django.conf import settings
 from django.db.models import Q
-from rest_framework import permissions, status, viewsets
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,6 +22,8 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # API schema generation has no real user.
+            return Payment.objects.none()
         user = self.request.user
         return Payment.objects.filter(Q(booking__guest=user) | Q(booking__property__host=user))
 
@@ -31,6 +34,10 @@ class CheckoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CheckoutSerializer
 
+    @extend_schema(
+        request=CheckoutSerializer,
+        responses={201: inline_serializer("CheckoutResponse", {"checkout_url": serializers.URLField()})},
+    )
     def post(self, request):
         serializer = CheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -43,7 +50,9 @@ class StripeWebhookView(APIView):
 
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
+    throttle_classes = []  # Stripe may send bursts of events; the signature check protects this endpoint.
 
+    @extend_schema(exclude=True)
     def post(self, request):
         if not settings.STRIPE_WEBHOOK_SECRET:
             raise services.PaymentsNotConfigured()

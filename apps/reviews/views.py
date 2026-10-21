@@ -13,5 +13,5 @@ class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["property", "rating"]
+    filterset_fields = ["property", "rating", "author", "booking"]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]

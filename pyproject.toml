@@ -10,3 +10,7 @@ select = ["E", "F", "I", "B", "UP", "DJ"]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["tests.py", "test_*.py"]
 addopts = "-ra"
+filterwarnings = [
+    # WhiteNoise looks for STATIC_ROOT, which only exists after `collectstatic`.
+    "ignore:No directory at:UserWarning",
+]
