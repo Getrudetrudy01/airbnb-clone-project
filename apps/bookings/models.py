@@ -1,14 +1,28 @@
 import builtins
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
+
+
+def payment_cutoff(now=None):
+    """Pending bookings created before this moment have run out of time to pay."""
+    return (now or timezone.now()) - timedelta(minutes=settings.BOOKING_PAYMENT_WINDOW_MINUTES)
 
 
 class BookingQuerySet(models.QuerySet):
     def active(self):
-        """Bookings that hold their dates (cancelled ones free them up)."""
-        return self.filter(status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED])
+        """Bookings that hold their dates.
+
+        Cancelled bookings free their dates, and so do pending ones left unpaid past the
+        payment window. That's enforced here rather than by a scheduled job, so dates are
+        released on time even on hosts without cron.
+        """
+        return self.filter(
+            Q(status=Booking.Status.CONFIRMED) | Q(status=Booking.Status.PENDING, created_at__gte=payment_cutoff())
+        )
 
     def overlapping(self, check_in, check_out):
         """Active bookings whose stay overlaps [check_in, check_out).
@@ -53,3 +67,13 @@ class Booking(models.Model):
     @builtins.property
     def nights(self):
         return (self.check_out - self.check_in).days
+
+    @builtins.property
+    def is_expired(self):
+        """Pending and not paid within the payment window: its dates are no longer held."""
+        return self.status == self.Status.PENDING and self.created_at < payment_cutoff()
+
+    @builtins.property
+    def effective_status(self):
+        """The status people should see, whether or not the cleanup job has run yet."""
+        return self.Status.CANCELLED if self.is_expired else self.status

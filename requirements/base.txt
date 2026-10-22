@@ -10,4 +10,5 @@ whitenoise>=6.8,<7
 django-storages[s3]>=1.14,<2
 django-environ>=0.12,<1
 mysqlclient>=2.2,<3
+psycopg[binary]>=3.2,<4
 gunicorn>=23,<24

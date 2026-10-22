@@ -8,6 +8,7 @@ from django.db import transaction
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from apps.bookings.models import Booking
+from apps.properties.models import Property
 
 from .models import Payment
 
@@ -49,6 +50,8 @@ def start_checkout(*, booking_id, user):
 
     if booking.status == Booking.Status.CANCELLED:
         raise ValidationError({"booking": "This booking has been cancelled."})
+    if booking.is_expired:
+        raise ValidationError({"booking": "This reservation expired because it wasn't paid in time."})
 
     payment = Payment.objects.filter(booking=booking).first()
     if payment and payment.status in (Payment.Status.COMPLETED, Payment.Status.REFUNDED):
@@ -155,13 +158,30 @@ def _mark_paid(session):
     payment.stripe_payment_intent_id = session.get("payment_intent") or ""
     payment.save()
 
-    booking = Booking.objects.select_for_update().get(pk=payment.booking_id)
+    booking = Booking.objects.select_for_update().select_related("property").get(pk=payment.booking_id)
     if booking.status == Booking.Status.CANCELLED:
         # The guest cancelled while the checkout page was open: give the money back.
         refund(payment)
     elif booking.status == Booking.Status.PENDING:
-        booking.status = Booking.Status.CONFIRMED
+        if booking.is_expired and _dates_taken_by_others(booking):
+            # A late webhook (e.g. Stripe retrying after an outage) for a reservation whose
+            # dates were released and rebooked: refund rather than double-book.
+            refund(payment)
+            booking.status = Booking.Status.CANCELLED
+        else:
+            booking.status = Booking.Status.CONFIRMED
         booking.save(update_fields=["status", "updated_at"])
+
+
+def _dates_taken_by_others(booking):
+    # Lock the listing so no new booking can land while we decide.
+    Property.objects.select_for_update().get(pk=booking.property_id)
+    return (
+        Booking.objects.overlapping(booking.check_in, booking.check_out)
+        .filter(property_id=booking.property_id)
+        .exclude(pk=booking.pk)
+        .exists()
+    )
 
 
 @transaction.atomic

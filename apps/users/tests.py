@@ -154,3 +154,34 @@ def test_register_rejects_duplicate_email_in_other_case(api_client, user):
 @pytest.mark.django_db
 def test_login_is_case_insensitive(api_client, user):
     assert login(api_client, "Jane@Example.com").status_code == 200
+
+
+# --- ensure_superuser ------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_ensure_superuser_creates_admin_once(monkeypatch):
+    from django.core.management import call_command
+
+    monkeypatch.setenv("DJANGO_SUPERUSER_EMAIL", "Admin@Example.com")
+    monkeypatch.setenv("DJANGO_SUPERUSER_PASSWORD", "first-password-123")
+    call_command("ensure_superuser")
+    admin = User.objects.get(email="admin@example.com")
+    assert admin.is_superuser
+
+    # Running again (every deploy) must not reset a password changed since.
+    monkeypatch.setenv("DJANGO_SUPERUSER_PASSWORD", "second-password-456")
+    call_command("ensure_superuser")
+    admin.refresh_from_db()
+    assert admin.check_password("first-password-123")
+    assert User.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_ensure_superuser_skips_without_variables(monkeypatch):
+    from django.core.management import call_command
+
+    monkeypatch.delenv("DJANGO_SUPERUSER_EMAIL", raising=False)
+    monkeypatch.delenv("DJANGO_SUPERUSER_PASSWORD", raising=False)
+    call_command("ensure_superuser")
+    assert not User.objects.exists()

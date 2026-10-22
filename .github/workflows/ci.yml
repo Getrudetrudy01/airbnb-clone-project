@@ -7,7 +7,18 @@ on:
 
 jobs:
   test:
+    name: test (${{ matrix.database }})
     runs-on: ubuntu-latest
+
+    # MySQL is the documented database; PostgreSQL is what Render provides. Test both.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: mysql
+            database_url: mysql://root:root@127.0.0.1:3306/airbnb
+          - database: postgres
+            database_url: postgres://postgres:postgres@127.0.0.1:5432/airbnb
 
     services:
       mysql:
@@ -22,11 +33,23 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airbnb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
 
     env:
       SECRET_KEY: ci-only-not-secret
       DEBUG: "False"
-      DATABASE_URL: mysql://root:root@127.0.0.1:3306/airbnb
+      DATABASE_URL: ${{ matrix.database_url }}
 
     steps:
       - uses: actions/checkout@v4

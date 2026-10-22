@@ -44,6 +44,12 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"guests": "At least one guest is required."})
         return attrs
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Unpaid bookings past the payment window show as cancelled even before cleanup runs.
+        data["status"] = instance.effective_status
+        return data
+
     def create(self, validated_data):
         return services.create_booking(
             guest=self.context["request"].user,
