@@ -31,6 +31,11 @@ export function Header() {
         <div className="site-account">
           {status === "signed-in" && user ? (
             <>
+              {user.is_demo && (
+                <span className="demo-badge" title="You're using a shared demo account">
+                  Demo
+                </span>
+              )}
               <span className="site-account-name">{user.first_name || user.email}</span>
               <button type="button" className="btn btn--ghost btn--sm" onClick={logOut}>
                 Log out

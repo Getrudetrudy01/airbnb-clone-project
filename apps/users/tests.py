@@ -185,3 +185,61 @@ def test_ensure_superuser_skips_without_variables(monkeypatch):
     monkeypatch.delenv("DJANGO_SUPERUSER_PASSWORD", raising=False)
     call_command("ensure_superuser")
     assert not User.objects.exists()
+
+
+# --- Demo login --------------------------------------------------------------
+
+DEMO_URL = "/api/auth/demo/"
+
+
+@pytest.fixture
+def demo_accounts():
+    from apps.users.demo import DEMO_LOGINS
+
+    guest = User.objects.create_user(email=DEMO_LOGINS["guest"], password="x-demo-pass-1", first_name="Sam")
+    host = User.objects.create_user(email=DEMO_LOGINS["host"], password="x-demo-pass-1", role=User.Role.HOST)
+    return guest, host
+
+
+@pytest.mark.django_db
+def test_demo_unavailable_without_demo_data(api_client):
+    assert api_client.get(DEMO_URL).data == {"available": False}
+    assert api_client.post(DEMO_URL, {"role": "guest"}, format="json").status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role", ["guest", "host"])
+def test_demo_login_returns_working_tokens(api_client, demo_accounts, role):
+    assert api_client.get(DEMO_URL).data == {"available": True}
+    tokens = api_client.post(DEMO_URL, {"role": role}, format="json").data
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+    me = api_client.get(ME_URL).data
+    assert me["is_demo"] is True
+    assert me["role"] == ("host" if role == "host" else "guest")
+
+
+@pytest.mark.django_db
+def test_demo_login_rejects_unknown_role(api_client, demo_accounts):
+    assert api_client.post(DEMO_URL, {"role": "admin"}, format="json").status_code == 400
+
+
+@pytest.mark.django_db
+def test_demo_login_can_be_switched_off(api_client, demo_accounts, settings):
+    settings.DEMO_LOGIN_ENABLED = False
+    assert api_client.get(DEMO_URL).data == {"available": False}
+    assert api_client.post(DEMO_URL, {"role": "guest"}, format="json").status_code == 404
+
+
+@pytest.mark.django_db
+def test_demo_profile_is_read_only(api_client, demo_accounts):
+    guest, _ = demo_accounts
+    api_client.force_authenticate(guest)
+    assert api_client.patch(ME_URL, {"first_name": "Hacked"}, format="json").status_code == 403
+    guest.refresh_from_db()
+    assert guest.first_name == "Sam"
+
+
+@pytest.mark.django_db
+def test_regular_users_are_not_demo(api_client, user):
+    api_client.force_authenticate(user)
+    assert api_client.get(ME_URL).data["is_demo"] is False

@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
+from .demo import is_demo_email
+
 
 class UserManager(BaseUserManager):
     """Manager for a user model that logs in with email instead of username."""
@@ -64,6 +66,11 @@ class User(AbstractUser):
             initial = f" {self.last_name[0]}." if self.last_name else ""
             return f"{self.first_name}{initial}"
         return "Keyhouse member"
+
+    @property
+    def is_demo(self):
+        """One of the shared demo accounts from seed_demo."""
+        return is_demo_email(self.email)
 
     @property
     def is_host(self):

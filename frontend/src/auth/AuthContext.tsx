@@ -19,6 +19,7 @@ interface AuthValue {
   status: Status;
   logIn: (email: string, password: string) => Promise<User>;
   register: (input: RegisterInput) => Promise<User>;
+  logInAsDemo: (role: "guest" | "host") => Promise<User>;
   logOut: () => void;
 }
 
@@ -61,6 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadMe, queryClient],
   );
 
+  const logInAsDemo = useCallback(
+    async (role: "guest" | "host") => {
+      const tokens = await api<{ access: string; refresh: string }>("/api/auth/demo/", {
+        method: "POST",
+        body: { role },
+      });
+      setTokens(tokens);
+      queryClient.clear();
+      return loadMe();
+    },
+    [loadMe, queryClient],
+  );
+
   const register = useCallback(
     async (input: RegisterInput) => {
       await api("/api/auth/register/", { method: "POST", body: { ...input } });
@@ -69,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [logIn],
   );
 
-  const value = useMemo(() => ({ user, status, logIn, register, logOut }), [user, status, logIn, register, logOut]);
+  const value = useMemo(
+    () => ({ user, status, logIn, register, logInAsDemo, logOut }),
+    [user, status, logIn, register, logInAsDemo, logOut],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

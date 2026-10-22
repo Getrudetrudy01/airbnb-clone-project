@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useListings, type ListingFilters } from "../api/queries";
+import { DemoHint } from "../components/DemoLogin";
 import { KeyTag } from "../components/KeyTag";
 import { ListingCard, ListingCardSkeleton } from "../components/ListingCard";
 import { EmptyState, Notice } from "../components/ui";
@@ -153,6 +154,7 @@ export function HomePage() {
             </button>
           </form>
           {formError && <Notice tone="error">{formError}</Notice>}
+          <DemoHint />
         </div>
 
         <div className="hero-tag">
@@ -220,6 +222,17 @@ export function HomePage() {
               <ListingCardSkeleton key={i} />
             ))}
           </div>
+        ) : results.length === 0 && !hasSearch ? (
+          <EmptyState
+            title="No places listed yet"
+            action={
+              <Link to="/register" className="btn btn--primary">
+                Become a host
+              </Link>
+            }
+          >
+            When hosts list their homes, they'll appear here.
+          </EmptyState>
         ) : results.length === 0 ? (
           <EmptyState
             title={filters.city ? `No stays in ${filters.city} for this search` : "No stays match this search"}

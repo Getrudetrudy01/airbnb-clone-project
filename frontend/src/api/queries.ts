@@ -54,6 +54,15 @@ export function useReviews(params: { property?: number; author?: number }, enabl
   });
 }
 
+export function useDemoAvailable() {
+  return useQuery({
+    queryKey: ["demo-available"],
+    queryFn: () => api<{ available: boolean }>("/api/auth/demo/"),
+    staleTime: Infinity,
+    select: (data) => data.available,
+  });
+}
+
 export function useBookings(enabled = true) {
   return useQuery({
     queryKey: ["bookings"],

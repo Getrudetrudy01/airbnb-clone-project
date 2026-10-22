@@ -958,3 +958,8 @@
   padding-top: 28px;
   border-top: 1px solid var(--line);
 }
+
+/* A notice directly under a page heading (e.g. the demo host note) needs room before the next section. */
+.page-head + .notice {
+  margin: -8px 0 32px;
+}

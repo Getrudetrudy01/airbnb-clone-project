@@ -162,6 +162,13 @@ SPECTACULAR_SETTINGS = {
 }
 
 
+# Demo accounts
+
+# "Try the demo" one-click login for the seed_demo accounts. It only works once those
+# accounts exist, so sites without demo data are unaffected.
+DEMO_LOGIN_ENABLED = env.bool("DEMO_LOGIN_ENABLED", default=True)
+
+
 # Bookings
 
 # Pending bookings that aren't paid within this window are cancelled by the

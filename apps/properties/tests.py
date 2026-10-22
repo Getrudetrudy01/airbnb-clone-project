@@ -189,3 +189,26 @@ def test_upload_rejects_non_image(api_client, make_property, media_root):
     bogus = SimpleUploadedFile("notes.png", b"not an image", content_type="image/png")
     response = api_client.post(f"{detail_url(listing.pk)}images/", {"image": bogus}, format="multipart")
     assert response.status_code == 400
+
+
+# --- Shared demo host is read-only ------------------------------------------
+
+
+@pytest.mark.django_db
+def test_demo_host_cannot_change_listings(api_client, make_property):
+    from django.contrib.auth import get_user_model
+
+    from apps.users.demo import DEMO_LOGINS
+
+    demo_host = get_user_model().objects.create_user(email=DEMO_LOGINS["host"], password="x", role="host")
+    listing = make_property(host=demo_host)
+    api_client.force_authenticate(demo_host)
+
+    assert api_client.post(LIST_URL, new_listing(), format="json").status_code == 403
+    assert api_client.patch(detail_url(listing.pk), {"title": "Defaced"}, format="json").status_code == 403
+    assert api_client.delete(detail_url(listing.pk)).status_code == 403
+    response = api_client.post(f"{detail_url(listing.pk)}images/", {"image": png_file()}, format="multipart")
+    assert response.status_code == 403
+    assert "demo" in response.data["detail"]
+    # Looking around still works.
+    assert api_client.get(detail_url(listing.pk)).status_code == 200

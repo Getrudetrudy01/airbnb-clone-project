@@ -40,10 +40,20 @@ export function HostingPage() {
     <div className="page">
       <header className="page-head page-head--split">
         <h1 className="page-title">Hosting</h1>
-        <Link to="/hosting/listings/new" className="btn btn--primary">
-          List a new place
-        </Link>
+        {!user.is_demo && (
+          <Link to="/hosting/listings/new" className="btn btn--primary">
+            List a new place
+          </Link>
+        )}
       </header>
+
+      {user.is_demo && (
+        <Notice>
+          You're exploring the shared demo host account. You can confirm and decline bookings, but editing listings is
+          turned off so the demo stays the same for everyone. <Link to="/register">Create a host account</Link> to list
+          your own place.
+        </Notice>
+      )}
 
       <section className="host-section" aria-labelledby="requests-title">
         <h2 id="requests-title" className="section-title section-title--sm">
@@ -184,6 +194,23 @@ export function ListingFormPage() {
       </div>
     );
   }
+  if (user.is_demo) {
+    return (
+      <div className="page page--narrow">
+        <EmptyState
+          title="Editing is off for the demo host"
+          action={
+            <Link to="/register" className="btn btn--primary">
+              Create a host account
+            </Link>
+          }
+        >
+          The demo accounts are shared, so listings stay the same for everyone. Create your own host account to try
+          listing a place and uploading photos.
+        </EmptyState>
+      </div>
+    );
+  }
   // Keyed so the form resets when switching from "new" to the created listing.
   return <ListingForm key={id} listing={isNew ? undefined : listing.data} />;
 }
@@ -298,7 +325,10 @@ function ListingForm({ listing }: { listing?: Listing }) {
           </Field>
         </div>
 
-        {save.isError && !Object.keys(errors).length && <Notice tone="error">{save.error.message}</Notice>}
+        {/* Errors tied to a field show under that field; anything else (e.g. "detail") shows here. */}
+        {save.isError && !Object.keys(errors).some((key) => key in form) && (
+          <Notice tone="error">{save.error.message}</Notice>
+        )}
         {saved && <Notice tone="success">Changes saved.</Notice>}
 
         <div className="form-actions">
