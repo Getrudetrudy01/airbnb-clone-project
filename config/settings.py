@@ -23,11 +23,12 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
-# On Railway, trust the service's public domain automatically, and the host its
-# health checker uses, so a fresh deploy works without extra configuration.
-RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default="")
-if RAILWAY_PUBLIC_DOMAIN:
-    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+# Hosting platforms announce the service's public hostname in an environment variable
+# (Render: RENDER_EXTERNAL_HOSTNAME, Railway: RAILWAY_PUBLIC_DOMAIN). Trust it automatically
+# so a fresh deploy works without setting ALLOWED_HOSTS by hand.
+PUBLIC_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="") or env("RAILWAY_PUBLIC_DOMAIN", default="")
+if PUBLIC_HOSTNAME:
+    ALLOWED_HOSTS.append(PUBLIC_HOSTNAME)
 if env("RAILWAY_ENVIRONMENT_NAME", default=""):
     ALLOWED_HOSTS.append("healthcheck.railway.app")
 
@@ -94,14 +95,16 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
-# Defaults to SQLite for quick local development; set DATABASE_URL to use MySQL,
-# e.g. mysql://airbnb:airbnb@localhost:3306/airbnb
+# Defaults to SQLite for quick local development. Set DATABASE_URL for MySQL or PostgreSQL,
+# e.g. mysql://airbnb:airbnb@localhost:3306/airbnb or postgres://user:pass@host:5432/airbnb
 
 DATABASES = {
     "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
 }
 # Reuse database connections between requests instead of reconnecting every time.
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+# Check a reused connection is still alive first; managed databases drop idle ones.
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
     # MySQL's legacy "utf8" can't store emoji; utf8mb4 can.
     DATABASES["default"].setdefault("OPTIONS", {})["charset"] = "utf8mb4"
@@ -172,7 +175,7 @@ STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 PAYMENTS_CURRENCY = env("PAYMENTS_CURRENCY", default="usd")
 # Where Stripe sends the guest after checkout.
-_default_frontend = f"https://{RAILWAY_PUBLIC_DOMAIN}" if RAILWAY_PUBLIC_DOMAIN else "http://localhost:3000"
+_default_frontend = f"https://{PUBLIC_HOSTNAME}" if PUBLIC_HOSTNAME else "http://localhost:3000"
 FRONTEND_URL = env("FRONTEND_URL", default=_default_frontend).rstrip("/")
 
 
@@ -180,7 +183,7 @@ FRONTEND_URL = env("FRONTEND_URL", default=_default_frontend).rstrip("/")
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[FRONTEND_URL])
 CSRF_TRUSTED_ORIGINS = env.list(
-    "CSRF_TRUSTED_ORIGINS", default=[f"https://{RAILWAY_PUBLIC_DOMAIN}"] if RAILWAY_PUBLIC_DOMAIN else []
+    "CSRF_TRUSTED_ORIGINS", default=[f"https://{PUBLIC_HOSTNAME}"] if PUBLIC_HOSTNAME else []
 )
 
 

@@ -38,5 +38,5 @@ RUN useradd --create-home appuser && mkdir -p /app/media && chown -R appuser /ap
 USER appuser
 
 EXPOSE 8000
-# Migrations run as a pre-deploy step (railway.json), not on every container start.
+# Railway runs migrations as a pre-deploy step (railway.json); Render uses scripts/start.sh instead.
 CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-3} --access-logfile -"]

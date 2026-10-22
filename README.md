@@ -590,12 +590,11 @@ Pending bookings older than `BOOKING_PAYMENT_WINDOW_MINUTES` (default 60) withou
 
 # 🚀 Deployment
 
-The app deploys to **Railway** as one Docker image: Django serves the API, the admin and the built React app on the same domain. Step-by-step instructions, including MySQL, photo storage, the cron job and Stripe, are in **[docs/deploy-railway.md](docs/deploy-railway.md)**.
+The app ships as one Docker image: Django serves the API, the admin and the built React app on the same domain. It runs on MySQL or PostgreSQL.
 
-| File | Purpose |
-|---|---|
-| `Dockerfile` | Builds the frontend, then the Django image (Gunicorn + WhiteNoise) |
-| `railway.json` | Web service: `migrate` before each deploy, health check on `/api/health/` |
-| `railway.cron.json` | Cron service: `expire_unpaid_bookings` every 15 minutes |
+| Platform | Guide | Config |
+|---|---|---|
+| **Render** (PostgreSQL) | **[docs/deploy-render.md](docs/deploy-render.md)** | `render.yaml`, `scripts/start.sh` |
+| Railway (MySQL) | [docs/deploy-railway.md](docs/deploy-railway.md) | `railway.json`, `railway.cron.json` |
 
-CI runs the tests with `DEBUG=False` and `python manage.py check --deploy` on every push, and builds the frontend, so security misconfigurations and frontend type errors fail the build.
+CI runs the tests on both MySQL and PostgreSQL with `DEBUG=False`, runs `python manage.py check --deploy`, and builds the frontend on every push, so database differences, security misconfigurations and frontend type errors fail the build.
