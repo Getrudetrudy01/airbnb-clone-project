@@ -84,9 +84,8 @@ Demo accounts: `guest@demo.keyhouse.test` and `amara@demo.keyhouse.test` (host),
 ### Checks
 
 ```bash
-ruff check . && ruff format --check .   # lint and formatting
-pytest --cov=apps                       # backend tests with coverage
-cd frontend && npm run build            # type-check and build the frontend
+sh scripts/check.sh      # everything CI runs: lint, migrations, tests, production settings, frontend build
+pytest --cov=apps        # backend tests with a coverage report
 ```
 
 ## Documentation

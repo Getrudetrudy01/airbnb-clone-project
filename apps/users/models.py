@@ -68,7 +68,7 @@ class User(AbstractUser):
         return "Keyhouse member"
 
     @property
-    def is_demo(self):
+    def is_demo(self) -> bool:
         """One of the shared demo accounts from seed_demo."""
         return is_demo_email(self.email)
 
