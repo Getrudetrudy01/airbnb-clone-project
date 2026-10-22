@@ -1,600 +1,108 @@
-# Airbnb Clone Project
+# Keyhouse: a full-stack Airbnb-style booking app
 
-# Overview
+Search places to stay, book dates on an availability calendar, pay with Stripe, and review your stay. Hosts list homes, upload photos and manage bookings. Built with **Django REST Framework** and **React + TypeScript**, tested on MySQL and PostgreSQL, and deployed on Render.
 
-The Airbnb Clone Project is a full-stack web application designed to replicate the core functionality of Airbnb — a global online marketplace for lodging and travel experiences. This project serves as a hands-on learning experience in designing, developing, and deploying a scalable booking platform. It emphasizes backend architecture, database modeling, API design, and modern DevOps practices.
+**[Live demo → keyhouse.onrender.com](https://keyhouse.onrender.com)**
 
-# Project Goals
+On the login page, choose **Explore as a guest** or **Explore as a host** to look around without signing up. To try paying, use Stripe's test card `4242 4242 4242 4242` with any future date and any CVC.
 
-The main objectives of this project are to:
+> The demo runs on a free plan that sleeps when nobody is using it, so the first visit can take up to a minute to load.
 
- Develop a robust backend system capable of handling complex booking workflows.
+![Keyhouse home page: a large "Book a place to stay" heading, a search bar, an amber hotel key tag that mirrors the search, and a grid of stays](docs/screenshots/home.png)
 
-Strengthen understanding of relational database design and optimization.
+## What it does
 
-Implement secure and efficient RESTful API endpoints.
+- **Search and browse.** Filter by city, dates, guests and price; sort by price or rating. Choosing dates hides places that are already booked.
+- **Book.** Pick dates on a calendar that crosses out booked nights, see the full price breakdown, and reserve.
+- **Pay.** Stripe Checkout takes the payment and a webhook confirms the booking. Cancelling a paid booking refunds it.
+- **Review.** Guests rate and review a stay after checking out. Listings show their average rating.
+- **Host.** List a place, upload photos, and confirm or decline bookings.
 
- Apply collaborative software engineering practices using GitHub and CI/CD tools.
+| A stay, with its availability calendar | Trips: each booking is a luggage tag |
+|---|---|
+| ![Stay page for a Kyoto townhouse with a booking panel and a calendar showing 7–11 December selected](docs/screenshots/stay.png) | ![Trips page with one booking awaiting payment and one confirmed](docs/screenshots/trips.png) |
 
- Integrate multiple technologies to create a seamless and scalable application experience.
+<p align="center"><img src="docs/screenshots/mobile.png" alt="The home page on a phone" width="300"></p>
 
-# Tech Stack
+## Engineering highlights
 
-This project leverages a combination of modern technologies, including:
+- **No double bookings, even under load.** Creating a booking locks the listing's row (`SELECT … FOR UPDATE`) while it checks for overlaps, so two people booking the same dates at the same moment can't both succeed. See [`apps/bookings/services.py`](apps/bookings/services.py).
+- **Payments that fail safely.** Stripe webhooks are signature-verified and safe to receive twice. A failed refund rolls back the cancellation, so a guest is never left cancelled *and* charged. Late payments for released dates are refunded rather than double-booked. See [`apps/payments/services.py`](apps/payments/services.py).
+- **Unpaid reservations release themselves.** A reservation left unpaid for an hour stops blocking dates without needing a background job, which keeps hosting simple and cheap. See [`apps/bookings/models.py`](apps/bookings/models.py).
+- **Security by default.** JWT auth with automatic token refresh, rate limits, role-based permissions (only hosts list places; only owners edit them), public profiles that never expose email addresses, read-only shared demo accounts, and production settings verified by `manage.py check --deploy` in CI.
+- **Tested.** Around 120 pytest tests (about 95% coverage) run in GitHub Actions against **both MySQL and PostgreSQL**, alongside linting, a missing-migrations check and a type-checked frontend build.
+- **One deployable unit.** A multi-stage Docker build compiles the React app, and Django serves it with the API on one domain, so there's no cross-origin setup. Deploys from a Render Blueprint.
+- **A considered UI.** A custom date-range calendar, keyboard-accessible controls, reduced-motion support, responsive layouts down to phone width, and a visual identity built around an old hotel key tag.
 
- Backend Framework: Django (Python)
+## Tech stack
 
- Database: MySQL
+| Layer | Tools |
+|---|---|
+| Backend | Python 3.13, Django 5.2, Django REST Framework, SimpleJWT, django-filter, drf-spectacular (OpenAPI) |
+| Frontend | React 19, TypeScript, React Router, TanStack Query, Vite; plain CSS with design tokens |
+| Data | PostgreSQL (production) or MySQL; SQLite for quick local development |
+| Payments | Stripe Checkout and webhooks |
+| Infrastructure | Docker, Gunicorn, WhiteNoise, GitHub Actions, Render (Railway also supported) |
 
- API Development: Django REST Framework / GraphQL
+## How it fits together
 
- Version Control: Git & GitHub
+```
+ Browser ──▶ Django (Gunicorn)
+              ├─ /           React app (built by Vite, served by WhiteNoise)
+              ├─ /api/...    REST API ───────────────▶ Stripe Checkout
+              ├─ /api/docs/  Swagger UI                     │
+              └─ /admin/     Django admin                   │ webhook
+                    │                                       ▼
+                    ▼                          /api/payments/webhook/
+              PostgreSQL / MySQL
+```
 
+Django apps: `users` (email login, guest/host roles, demo accounts), `properties` (listings, photos, search), `bookings` (reservations and availability), `reviews`, and `payments` (Stripe).
 
+## Run it locally
 
-
-# 👥 Team Roles
-
-Building a scalable Airbnb Clone requires a collaborative effort across several specialized roles. Each member contributes unique expertise to ensure the project’s success.
-
-# 🧑‍💻 Backend Developer
-
-Responsible for designing, implementing, and maintaining the server-side logic of the application.
-They build RESTful APIs, handle authentication, integrate third-party services, and ensure that the backend is efficient, secure, and scalable.
-
-Key Responsibilities:
-
-Develop and maintain the core logic and APIs using Django.
-
-Manage user sessions, authentication, and authorization.
-
-Integrate frontend requests with the backend logic.
-
-Optimize performance and ensure code scalability.
-
-# 🗄️ Database Administrator (DBA)
-
-Ensures that the project’s data layer is well-structured, optimized, and secure.
-The DBA manages all database-related operations, including schema design, normalization, indexing, and backup management.
-
-Key Responsibilities:
-
-Design and implement the relational database schema (MySQL).
-
-Manage data integrity, migrations, and security.
-
-Optimize queries for performance.
-
-Perform regular data backups and recovery testing.
-
-# 💻 Frontend Developer
-
-Focuses on creating the visual and interactive aspects of the Airbnb Clone application.
-They transform backend data into user-friendly interfaces, ensuring smooth navigation and responsiveness.
-
-Key Responsibilities:
-
-Design and develop responsive user interfaces.
-
-Integrate frontend components with backend APIs.
-
-Enhance user experience (UX) and accessibility.
-
-Test and debug UI components across devices.
-
-# 🔐 Security Engineer
-
-Responsible for securing the application from potential vulnerabilities.
-They ensure all transactions, data transfers, and authentication mechanisms follow industry-standard security practices.
-
-Key Responsibilities:
-
-Implement encryption and authentication protocols.
-
-Monitor and mitigate potential security threats.
-
-Conduct vulnerability assessments and penetration testing.
-
-Maintain compliance with data protection standards.
-
-# ⚙️ DevOps Engineer
-
-Manages the automation, deployment, and monitoring processes.
-They set up the CI/CD pipeline to streamline integration and deployment while ensuring application uptime and stability.
-
-Key Responsibilities:
-
-Set up Docker containers and manage deployments.
-
-Implement CI/CD using GitHub Actions.
-
-Monitor server performance and logs.
-
-Automate testing, build, and release processes.
-
-# 🧾 Project Manager
-
-Oversees project planning, timelines, and deliverables.
-They coordinate communication between all team members, ensuring that goals and deadlines are met.
-
-Key Responsibilities:
-
-Define project scope and milestones.
-
-Facilitate team collaboration and workflow.
-
-Track progress and manage documentation.
-
-Ensure timely delivery and quality control.
-
-
-
-# 🧠 Technology Stack
-
-The Airbnb Clone Project is built using a collection of modern tools and frameworks that work together to deliver a scalable, secure, and high-performing application. Each technology in the stack plays a specific role in achieving these goals.
-
-🐍 Django
-
-A high-level Python web framework used for building robust, maintainable, and secure web applications.
-In this project, Django handles the backend logic, routing, user authentication, and API integration while following the Model-View-Template (MVT) architecture.
-
-🗃️ MySQL
-
-A powerful relational database management system (RDBMS) used to store and manage application data.
-MySQL ensures data integrity, relational mapping, and high performance for user profiles, listings, reservations, and payment records.
-
-🔗 GraphQL
-
-An advanced query language for APIs that provides clients with the ability to request specific data.
-GraphQL improves efficiency by minimizing over-fetching and under-fetching, offering flexibility when querying data across listings, users, and bookings.
-
-🐳 Docker
-
-A containerization platform that allows applications and dependencies to run consistently across multiple environments.
-Docker is used to containerize the Airbnb Clone application, simplifying development, testing, and deployment.
-
-⚙️ Git & GitHub
-
-A version control system (Git) and a collaboration platform (GitHub) used for managing source code, version tracking, and team collaboration.
-They support efficient teamwork, issue tracking, and CI/CD integrations.
-
-🚀 GitHub Actions
-
-An automation tool integrated into GitHub that enables CI/CD workflows.
-GitHub Actions automates testing, building, and deploying the Airbnb Clone, ensuring reliability and reducing manual effort.
-
-☁️ Cloud Deployment (AWS / Render / Heroku)
-
-A cloud hosting environment used to deploy the application and make it accessible to end users.
-This ensures scalability, performance, and continuous availability of the Airbnb Clone web platform.
-
-
-🔒 API Security Tools
-
-Includes libraries and middleware for implementing authentication (JWT, OAuth2), data validation, and encryption.
-These ensure that all communication between the client and server remains private and tamper-proof.
-
-
- # 🗄️ Database Design
-
-The Airbnb Clone Project uses a relational database model built with MySQL, ensuring data integrity, scalability, and efficient querying. The database is designed to represent real-world relationships between users, properties, bookings, reviews, and payments.
-
-🧑‍🤝‍🧑 Users
-
-Represents all users registered on the platform — including hosts and guests.
-
-Key Fields:
-
-id: Unique identifier for each user
-
-name: Full name of the user
-
-email: User’s email address (unique)
-
-password_hash: Encrypted password for authentication
-
-role: Defines whether the user is a host or guest
-
-Relationships:
-
-A user can list multiple properties.
-
-A user can make multiple bookings.
-
-A user can write multiple reviews.
-
-🏠 Properties
-
-Represents all listed accommodations available for booking.
-
-Key Fields:
-
-id: Unique identifier for each property
-
-host_id: Foreign key referencing the user (host)
-
-title: Property name or title
-
-description: Overview of the property
-
-price_per_night: Cost per night for booking
-
-Relationships:
-
-A property belongs to one host (user).
-
-A property can have multiple bookings and reviews.
-
-📅 Bookings
-
-Tracks reservations made by users for specific properties.
-
-Key Fields:
-
-id: Unique booking identifier
-
-user_id: Foreign key referencing the guest (user)
-
-property_id: Foreign key referencing the booked property
-
-check_in_date: Start date of the booking
-
-check_out_date: End date of the booking
-
-Relationships:
-
-A booking belongs to one property.
-
-A booking is made by one user (guest).
-
-A booking can have one associated payment record.
-
-💳 Payments
-
-Handles all financial transactions between guests and hosts.
-
-Key Fields:
-
-id: Unique payment identifier
-
-booking_id: Foreign key referencing the related booking
-
-amount: Total payment amount
-
-payment_method: Method used (e.g., credit card, PayPal)
-
-status: Indicates whether payment is pending, completed, or failed
-
-Relationships:
-
-A payment belongs to one booking.
-
-A booking has one payment record.
-
-⭐ Reviews
-
-Captures feedback and ratings given by guests after their stay.
-
-Key Fields:
-
-id: Unique review identifier
-
-user_id: Foreign key referencing the guest (user)
-
-property_id: Foreign key referencing the reviewed property
-
-rating: Numeric rating (e.g., 1–5 stars)
-
-comment: Text feedback on the stay
-
-Relationships:
-
-A review is written by one user (guest).
-
-A review belongs to one property.
-
-🔗 Entity Relationships Summary
-
-User → Property: One-to-Many
-
-User → Booking: One-to-Many
-
-User → Review: One-to-Many
-
-
-
-# 🧩 Feature Breakdown
-
-The Airbnb Clone Project includes several core features that work together to deliver a seamless experience for both hosts and guests. Each feature is designed to mirror real-world Airbnb functionalities while showcasing strong backend and architectural design principles.
-
-👤 User Management
-
-Handles user registration, authentication, and profile management.
-This feature enables users to create accounts, log in securely, and manage personal information. It also distinguishes between hosts (who list properties) and guests (who book stays).
-
-🏠 Property Management
-
-Allows hosts to create, update, and delete property listings.
-Each property includes detailed descriptions, images, location data, and pricing. This feature ensures accurate representation of listings and simplifies the property discovery process for guests.
-
-📅 Booking System
-
-Facilitates the reservation of properties by guests.
-Users can select available dates, confirm bookings, and receive notifications. The system prevents overlapping reservations and maintains accurate booking records.
-
-💳 Payment Integration
-
-Manages secure payments between guests and hosts.
-It supports multiple payment methods and ensures that transactions are processed safely through encryption and validation. This feature provides transparency and trust in financial operations.
-
-⭐ Reviews and Ratings
-
-Allows guests to leave feedback on properties they’ve stayed in.
-Each review includes a written comment and a rating score, contributing to host credibility and helping future guests make informed decisions.
-
-🔐 Security and Authentication
-
-Implements secure user authentication using methods such as JWT or OAuth2.
-This feature ensures that only authorized users can access restricted endpoints, protecting sensitive user and transaction data from unauthorized access.
-
-⚙️ CI/CD and Deployment
-
-Automates the development workflow using GitHub Actions and Docker.
-Continuous Integration and Continuous Deployment ensure that code changes are tested, built, and deployed efficiently, reducing human errors and improving delivery speed.
-
-📊 Admin Dashboard (Optional Enhancement)
-
-Provides administrators with tools to manage users, properties, and payments.
-This feature enhances system oversight, allowing admins to monitor activity, verify listings, and ensure compliance with platform policies.
-
-Property → Booking: One-to-Many
-
-Property → Review: One-to-Many
-
-
-
-
-# 🔒 API Security
-
-Securing the backend API is essential to ensure that user data, financial transactions, and platform operations remain protected from unauthorized access or malicious activity. The Airbnb Clone Project integrates several layers of security to maintain data confidentiality, integrity, and availability.
-
-🔑 Authentication
-
-Implements secure user login and identity verification using JWT (JSON Web Tokens) or OAuth2.
-This ensures that only registered users can access protected endpoints and perform authorized actions.
-Why it’s important: Protects user accounts from unauthorized access and prevents impersonation attacks.
-
-🧾 Authorization
-
-Defines specific permissions and access control for different user roles — such as hosts, guests, and admins.
-Authorization ensures that users can only perform actions they are permitted to (e.g., a guest cannot edit another host’s property listing).
-Why it’s important: Prevents privilege escalation and maintains proper role-based security boundaries.
-
-🚦 Rate Limiting
-
-Restricts the number of API requests a user or client can make within a set time frame.
-By using tools like Django REST Framework throttling or NGINX rate limiting, the system prevents denial-of-service (DoS) attacks and API abuse.
-Why it’s important: Protects the server from being overwhelmed by malicious or excessive requests.
-
-🔐 Data Encryption
-
-Ensures that sensitive information — such as passwords, payment details, and personal data — is encrypted both in transit (using HTTPS/SSL) and at rest (in the database).
-Why it’s important: Safeguards user privacy and prevents data leaks or theft.
-
-🧱 Input Validation & Sanitization
-
-All API inputs are validated to prevent injection attacks (e.g., SQL Injection, XSS).
-Data is sanitized before being stored or processed to maintain data integrity.
-Why it’s important: Protects the backend from malicious payloads and ensures system stability.
-
-🧩 Error Handling & Logging
-
-Implements secure error responses that avoid exposing sensitive system information while maintaining detailed server-side logs for auditing and debugging.
-Why it’s important: Prevents attackers from gathering system details and helps in quick issue tracking during incidents.
-
-🕵️‍♀️ Secure Payment Processing
-
-Integrates trusted payment gateways and ensures all payment APIs comply with PCI DSS (Payment Card Industry Data Security Standard).
-Sensitive financial data is tokenized rather than stored directly in the database.
-Why it’s important: Protects user financial information and builds trust in the platform’s payment system.
-
-Booking → Payment: One-to-One
-
-
-
-# ⚙️ CI/CD Pipeline
-
-Continuous Integration (CI) and Continuous Deployment (CD) are key components of modern software development. They automate the process of building, testing, and deploying code, ensuring faster delivery, fewer human errors, and more reliable updates.
-
-🔄 Continuous Integration (CI)
-
-In the Airbnb Clone Project, Continuous Integration ensures that every code change pushed to the repository is automatically tested and validated.
-This helps detect errors early in the development process, maintain code quality, and keep the main branch stable.
-
-Key Benefits:
-
-Early detection of bugs and integration issues.
-
-Consistent testing environment for all contributors.
-
-Smooth collaboration through automated build checks.
-
-🚀 Continuous Deployment (CD)
-
-Continuous Deployment automates the process of pushing tested and approved changes to the production environment.
-This ensures that new features and fixes are delivered quickly and consistently without manual intervention.
-
-Key Benefits:
-
-Faster feature delivery and updates.
-
-Reduced downtime through automated deployment.
-
-Improved reliability and rollback management.
-
-🧰 Tools Used
-
-To achieve CI/CD automation, the following tools are utilized in this project:
-
-GitHub Actions: Automates workflows for testing, building, and deploying code directly from the GitHub repository.
-
-Docker: Containerizes the application, ensuring consistency across development, testing, and production environments.
-
-Cloud Deployment Services (e.g., AWS, Render, Heroku): Used for hosting the production-ready application.
-
-Testing Frameworks (e.g., Pytest, Django Test): Ensure that the code meets functional and performance requirements before deployment.
-
-
-
-
-
-
-# 🛠️ Getting Started
-
-### Prerequisites
-
-- Python 3.13+
-- (Optional) Docker Desktop, to run with MySQL
-
-### Local setup (SQLite, no Docker)
+You need Python 3.13+ and Node.js 22+.
 
 ```bash
+# Backend: http://127.0.0.1:8000
 python -m venv .venv
 # Windows: .venv\Scripts\activate   |   macOS/Linux: source .venv/bin/activate
 pip install -r requirements/dev.txt
-cp .env.example .env          # then set SECRET_KEY
+cp .env.example .env              # then set SECRET_KEY to any long random string
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py seed_demo        # 12 listings, demo hosts and guests, past stays and reviews
 python manage.py runserver
-```
 
-Visit http://127.0.0.1:8000/admin/.
-
-### Docker setup (MySQL)
-
-```bash
-cp .env.example .env
-docker compose up --build
-docker compose exec web python manage.py createsuperuser
-```
-
-### Quality checks
-
-```bash
-ruff check .          # lint
-ruff format .         # format
-pytest                # tests
-pytest --cov=apps     # tests with coverage report
-```
-
-These same checks run in GitHub Actions on every push and pull request.
-
-### Project structure
-
-```
-config/         # Django settings, root URLs, WSGI/ASGI
-apps/
-  users/        # Custom User model (email login, guest/host/admin roles)
-  properties/   # Listings
-  bookings/     # Reservations
-  reviews/      # Ratings & comments
-  payments/     # Payment records
-requirements/   # base.txt (prod) and dev.txt (tooling)
-```
-
-### Demo data
-
-```bash
-python manage.py seed_demo          # 12 listings, hosts, guests, past stays and reviews
-python manage.py seed_demo --reset  # wipe and recreate the demo accounts
-```
-
-Log in as `guest@demo.keyhouse.test` (guest) or `amara@demo.keyhouse.test` (host). Password: `Keyhouse-demo-2026`.
-
-### Frontend (React)
-
-The web app lives in [`frontend/`](frontend/): React 19, TypeScript, React Router and TanStack Query, built with Vite.
-
-```bash
+# Frontend: http://localhost:3000 (in a second terminal)
 cd frontend
 npm install
-npm run dev        # http://localhost:3000, proxies /api and /media to Django on :8000
-npm run build      # type-check and build to frontend/dist
+npm run dev
 ```
 
-Run Django (`python manage.py runserver`) at the same time. Pages: stay search, stay details with an availability calendar and booking, trips (pay, cancel, review), and hosting (booking requests, listing editor, photo uploads).
+Demo accounts: `guest@demo.keyhouse.test` and `amara@demo.keyhouse.test` (host), password `Keyhouse-demo-2026`, or use the **Explore as…** buttons on the login page. For MySQL in Docker instead of SQLite, run `docker compose up --build`.
 
-### API documentation
-
-With the server running, interactive docs are at:
-
-- **Swagger UI:** http://127.0.0.1:8000/api/docs/ (click **Authorize** and paste an access token to try protected endpoints)
-- **ReDoc:** http://127.0.0.1:8000/api/redoc/
-- **OpenAPI schema:** http://127.0.0.1:8000/api/schema/
-
-### API endpoints
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/register/` | — | Create an account (`role`: `guest` or `host`) |
-| POST | `/api/auth/login/` | — | Get `access` + `refresh` JWT tokens |
-| POST | `/api/auth/refresh/` | — | Get a new access token from a refresh token |
-| GET / PATCH | `/api/users/me/` | Bearer | View or update your profile |
-| GET | `/api/properties/` | — | List listings (filters below) |
-| POST | `/api/properties/` | Host | Create a listing |
-| GET | `/api/properties/{id}/` | — | Listing details |
-| PATCH / DELETE | `/api/properties/{id}/` | Owner | Update or delete a listing |
-| POST | `/api/properties/{id}/images/` | Owner | Upload an image (multipart, max 5 MB) |
-| DELETE | `/api/properties/{id}/images/{image_id}/` | Owner | Remove an image |
-| GET | `/api/properties/{id}/booked-dates/` | — | Upcoming booked date ranges |
-| GET | `/api/bookings/` | Bearer | Your bookings as guest and as host (`?status=`, `?property=`) |
-| POST | `/api/bookings/` | Bearer | Book a property (`property`, `check_in`, `check_out`, `guests`) |
-| GET | `/api/bookings/{id}/` | Guest or host | Booking details |
-| POST | `/api/bookings/{id}/confirm/` | Host | Confirm a pending booking |
-| POST | `/api/bookings/{id}/cancel/` | Guest or host | Cancel before check-in (refunds if paid) |
-| GET | `/api/reviews/` | — | List reviews (`?property=`, `?rating=`) |
-| POST | `/api/reviews/` | Guest | Review a finished, confirmed stay (`booking`, `rating` 1–5, `comment`) |
-| PATCH / DELETE | `/api/reviews/{id}/` | Author | Edit or delete your review |
-| POST | `/api/payments/checkout/` | Guest | Start Stripe Checkout for a booking; returns `checkout_url` |
-| GET | `/api/payments/` | Bearer | Payments for your bookings (as guest or host) |
-| POST | `/api/payments/webhook/` | Stripe signature | Stripe event receiver |
-
-Send the access token as `Authorization: Bearer <token>`. Access tokens last 15 minutes and refresh tokens 7 days. Register and login are limited to 10 requests per minute.
-
-**Listing filters:** `city`, `country`, `min_price`, `max_price`, `guests` (minimum capacity), `check_in` + `check_out` (only show available listings), `search` (title/description/location) and `ordering` (`price_per_night`, `average_rating`, `-created_at`, ...). Each listing includes `average_rating` and `review_count`.
-
-**Booking rules:** check-in can't be in the past, stays are 1–90 nights, guest count can't exceed the listing's limit, hosts can't book their own listings, and dates can't overlap an existing pending or confirmed booking (check-out day is free for the next guest). The total price is calculated by the server.
-
-### Payments (Stripe test mode)
-
-1. Create a free Stripe account and copy the **test** secret key into `STRIPE_SECRET_KEY` in `.env`.
-2. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli) and forward webhooks to your local server:
-   ```bash
-   stripe login
-   stripe listen --forward-to localhost:8000/api/payments/webhook/
-   ```
-   Put the `whsec_...` secret it prints into `STRIPE_WEBHOOK_SECRET`, then restart the server.
-3. Create a booking, `POST /api/payments/checkout/` with its id, open the returned `checkout_url` and pay with test card `4242 4242 4242 4242` (any future date, any CVC).
-
-When Stripe reports the payment, the booking becomes **confirmed**. Cancelling a paid booking refunds it in full. Card details only ever go to Stripe.
-
-### Scheduled jobs
-
-Unpaid bookings hold their dates, so cancel stale ones on a schedule (every 10–15 minutes):
+### Checks
 
 ```bash
-python manage.py expire_unpaid_bookings
+ruff check . && ruff format --check .   # lint and formatting
+pytest --cov=apps                       # backend tests with coverage
+cd frontend && npm run build            # type-check and build the frontend
 ```
 
-Pending bookings older than `BOOKING_PAYMENT_WINDOW_MINUTES` (default 60) without a completed payment are cancelled. Use your platform's cron jobs (e.g. Render Cron Job, Railway cron, or a system crontab).
+## Documentation
 
-# 🚀 Deployment
+- [API reference](docs/api.md): endpoints, filters, booking rules, and testing payments locally. Interactive docs are at `/api/docs/`.
+- [Deploying to Render](docs/deploy-render.md) (the live demo) and [deploying to Railway](docs/deploy-railway.md)
+- [Original project plan](docs/project-plan.md): the design document written before any code, covering goals, roles, database design and security plans
 
-The app ships as one Docker image: Django serves the API, the admin and the built React app on the same domain. It runs on MySQL or PostgreSQL.
+## Project structure
 
-| Platform | Guide | Config |
-|---|---|---|
-| **Render** (PostgreSQL) | **[docs/deploy-render.md](docs/deploy-render.md)** | `render.yaml`, `scripts/start.sh` |
-| Railway (MySQL) | [docs/deploy-railway.md](docs/deploy-railway.md) | `railway.json`, `railway.cron.json` |
-
-CI runs the tests on both MySQL and PostgreSQL with `DEBUG=False`, runs `python manage.py check --deploy`, and builds the frontend on every push, so database differences, security misconfigurations and frontend type errors fail the build.
+```
+apps/            Django apps: users, properties, bookings, reviews, payments
+config/          Settings, URLs, health check, SPA view
+frontend/        React + TypeScript app
+docs/            Guides, API reference, screenshots, original plan
+scripts/         Container start script (migrate, create admin, seed, Gunicorn)
+Dockerfile       Builds the frontend, then the Django image
+render.yaml      Render Blueprint (web service + PostgreSQL)
+```
