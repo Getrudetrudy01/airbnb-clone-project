@@ -10,11 +10,9 @@ from django.utils import timezone
 from apps.bookings.models import Booking
 from apps.properties.models import Property
 from apps.reviews.models import Review
+from apps.users.demo import DEMO_DOMAIN, DEMO_PASSWORD
 
 User = get_user_model()
-
-DEMO_DOMAIN = "demo.keyhouse.test"
-DEMO_PASSWORD = "Keyhouse-demo-2026"
 
 HOSTS = [
     ("amara", "Amara", "Okafor"),

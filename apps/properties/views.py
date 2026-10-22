@@ -4,9 +4,11 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, parsers, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.bookings.models import Booking
+from apps.users.demo import DEMO_READ_ONLY_MESSAGE
 
 from .filters import PropertyFilter
 from .models import Property
@@ -28,6 +30,12 @@ class PropertyViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["title", "description", "city", "country"]
     ordering_fields = ["price_per_night", "created_at", "average_rating"]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        # Shared demo accounts can look around but not change listings everyone else sees.
+        if request.method not in permissions.SAFE_METHODS and request.user.is_authenticated and request.user.is_demo:
+            raise PermissionDenied(DEMO_READ_ONLY_MESSAGE)
 
     def perform_create(self, serializer):
         serializer.save(host=self.request.user)

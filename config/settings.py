@@ -159,7 +159,19 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Listings, bookings, reviews and payments. Send `Authorization: Bearer <access token>`.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Several serializers have a "role" field with different choices; name each set explicitly.
+    "ENUM_NAME_OVERRIDES": {
+        "UserRoleEnum": "apps.users.models.User.Role",
+        "GuestOrHostRoleEnum": ["guest", "host"],
+    },
 }
+
+
+# Demo accounts
+
+# "Try the demo" one-click login for the seed_demo accounts. It only works once those
+# accounts exist, so sites without demo data are unaffected.
+DEMO_LOGIN_ENABLED = env.bool("DEMO_LOGIN_ENABLED", default=True)
 
 
 # Bookings

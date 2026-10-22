@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ApiError, fieldErrors } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { DemoLogin } from "../components/DemoLogin";
 import { Field, Notice } from "../components/ui";
 
 /** Only follow same-site paths after login, never an arbitrary URL. */
@@ -68,6 +69,7 @@ export function LoginPage() {
         <p className="auth-switch">
           New to Keyhouse? <Link to={`/register${params.size ? `?${params}` : ""}`}>Create an account</Link>
         </p>
+        <DemoLogin next={safeNext(params.get("next"))} />
       </form>
     </div>
   );
@@ -176,6 +178,7 @@ export function RegisterPage() {
         <p className="auth-switch">
           Already have an account? <Link to={`/login${params.size ? `?${params}` : ""}`}>Log in</Link>
         </p>
+        <DemoLogin next={safeNext(params.get("next"))} />
       </form>
     </div>
   );

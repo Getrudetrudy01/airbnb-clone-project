@@ -6,6 +6,8 @@ export interface User {
   first_name: string;
   last_name: string;
   role: Role;
+  /** One of the shared demo accounts: browsing and booking only. */
+  is_demo: boolean;
   date_joined: string;
 }
 
