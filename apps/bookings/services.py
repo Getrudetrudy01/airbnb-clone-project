@@ -1,6 +1,3 @@
-from datetime import timedelta
-
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -9,13 +6,18 @@ from apps.payments import services as payment_services
 from apps.payments.models import Payment
 from apps.properties.models import Property
 
-from .models import Booking
+from .models import Booking, payment_cutoff
+
+EXPIRED_MESSAGE = "This reservation expired because it wasn't paid in time. Book the dates again."
 
 
 def expire_unpaid_bookings(*, now=None):
-    """Cancel pending bookings left unpaid past the payment window. Returns how many were cancelled."""
-    now = now or timezone.now()
-    cutoff = now - timedelta(minutes=settings.BOOKING_PAYMENT_WINDOW_MINUTES)
+    """Mark pending bookings left unpaid past the payment window as cancelled.
+
+    Expired bookings already stop holding dates (see BookingQuerySet.active), so this
+    only tidies their stored status. Returns how many were cancelled.
+    """
+    cutoff = payment_cutoff(now)
     stale_ids = list(
         Booking.objects.filter(status=Booking.Status.PENDING, created_at__lt=cutoff)
         .exclude(payment__status=Payment.Status.COMPLETED)
@@ -73,6 +75,8 @@ def confirm_booking(*, booking_id, user):
     booking = Booking.objects.select_for_update().select_related("property").get(pk=booking_id)
     if booking.property.host_id != user.id:
         raise PermissionDenied("Only the host can confirm this booking.")
+    if booking.is_expired:
+        raise ValidationError({"status": EXPIRED_MESSAGE})
     if booking.status != Booking.Status.PENDING:
         raise ValidationError({"status": f"Cannot confirm a {booking.status} booking."})
     booking.status = Booking.Status.CONFIRMED

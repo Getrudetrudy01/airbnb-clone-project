@@ -252,3 +252,56 @@ def test_payments_visible_to_guest_and_host_only(api_client, booking, pending_pa
     for user, expected in [(booking.guest, 1), (booking.property.host, 1), (make_user(), 0)]:
         api_client.force_authenticate(user)
         assert api_client.get("/api/payments/").data["count"] == expected
+
+
+# --- Late payments for expired reservations ----------------------------------
+
+
+def age(booking, minutes):
+    from datetime import timedelta as td
+
+    Booking.objects.filter(pk=booking.pk).update(created_at=timezone.now() - td(minutes=minutes))
+    booking.refresh_from_db()
+
+
+@pytest.mark.django_db
+def test_cannot_start_checkout_for_expired_reservation(api_client, guest, booking, stripe_create, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    age(booking, 90)
+    api_client.force_authenticate(guest)
+    assert api_client.post(CHECKOUT_URL, {"booking": booking.pk}, format="json").status_code == 400
+    stripe_create.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_late_payment_is_confirmed_when_dates_still_free(api_client, booking, pending_payment, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    age(booking, 90)
+    send_webhook(api_client, "checkout.session.completed", paid_session(booking))
+    booking.refresh_from_db()
+    assert booking.status == Booking.Status.CONFIRMED
+
+
+@pytest.mark.django_db
+def test_late_payment_is_refunded_when_dates_were_rebooked(
+    api_client, booking, pending_payment, stripe_refund, make_user, settings
+):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    age(booking, 90)
+    # Someone else booked the released dates.
+    Booking.objects.create(
+        guest=make_user(),
+        property=booking.property,
+        check_in=booking.check_in,
+        check_out=booking.check_out,
+        total_price="199.98",
+        status=Booking.Status.CONFIRMED,
+    )
+
+    send_webhook(api_client, "checkout.session.completed", paid_session(booking))
+
+    stripe_refund.assert_called_once_with(api_key="sk_test_dummy", payment_intent="pi_test_123")
+    booking.refresh_from_db()
+    pending_payment.refresh_from_db()
+    assert booking.status == Booking.Status.CANCELLED
+    assert pending_payment.status == Payment.Status.REFUNDED

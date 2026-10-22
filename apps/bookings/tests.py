@@ -259,3 +259,54 @@ def test_expire_command_runs(guest, listing):
     out = StringIO()
     call_command("expire_unpaid_bookings", stdout=out)
     assert "Cancelled 1 unpaid booking(s)" in out.getvalue()
+
+
+# --- Expiry without the cleanup job ----------------------------------------
+
+
+@pytest.mark.django_db
+def test_expired_reservation_does_not_block_dates(guest_client, guest, listing, make_user, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    make_aged_booking(guest, listing, minutes_old=90)  # days 10-12, unpaid, never cleaned up
+
+    guest_client.force_authenticate(make_user())
+    assert book(guest_client, listing, days_from_now(10), days_from_now(12)).status_code == 201
+
+
+@pytest.mark.django_db
+def test_fresh_reservation_still_blocks_dates(guest_client, guest, listing, make_user, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    make_aged_booking(guest, listing, minutes_old=10)
+
+    guest_client.force_authenticate(make_user())
+    assert book(guest_client, listing, days_from_now(10), days_from_now(12)).status_code == 400
+
+
+@pytest.mark.django_db
+def test_expired_reservation_shows_as_cancelled(guest_client, guest, listing, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    booking = make_aged_booking(guest, listing, minutes_old=90)
+    assert guest_client.get(f"{LIST_URL}{booking.pk}/").data["status"] == "cancelled"
+    assert api_client_dates(guest_client, listing) == []
+
+
+def api_client_dates(client, listing):
+    return client.get(f"/api/properties/{listing.pk}/booked-dates/").data
+
+
+@pytest.mark.django_db
+def test_host_cannot_confirm_expired_reservation(api_client, guest, listing, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    booking = make_aged_booking(guest, listing, minutes_old=90)
+    api_client.force_authenticate(listing.host)
+    response = api_client.post(f"{LIST_URL}{booking.pk}/confirm/")
+    assert response.status_code == 400
+    assert "expired" in str(response.data["status"])
+
+
+@pytest.mark.django_db
+def test_availability_search_ignores_expired_reservations(api_client, guest, listing, settings):
+    settings.BOOKING_PAYMENT_WINDOW_MINUTES = 60
+    make_aged_booking(guest, listing, minutes_old=90)
+    params = {"check_in": days_from_now(10), "check_out": days_from_now(12)}
+    assert api_client.get("/api/properties/", params).data["count"] == 1
